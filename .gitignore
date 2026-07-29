@@ -1,0 +1,15 @@
+# IDE
+.idea/
+.vscode/
+.claude/
+
+# 환경변수
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
