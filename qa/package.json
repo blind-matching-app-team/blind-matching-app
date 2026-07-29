@@ -1,0 +1,25 @@
+{
+  "name": "qa",
+  "version": "1.0.0",
+  "description": "Playwright E2E/API test suite for blind-matching-app",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:e2e": "playwright test --project=e2e",
+    "test:api": "playwright test --project=api",
+    "test:headed": "playwright test --project=e2e --headed",
+    "report": "playwright show-report"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.62.0",
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2"
+  }
+}
