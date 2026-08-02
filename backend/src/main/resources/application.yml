@@ -1,0 +1,122 @@
+spring:
+  application:
+    name: blind-matching-api
+
+  datasource:
+    # 스키마와 docker-compose 모두 소문자 bma 로 통일했다.
+    # (이전에는 스키마가 대문자 BMA 를 만들고 앱은 소문자 bma 에 접속해,
+    #  Linux MySQL 의 DB 이름 대소문자 구분 때문에 테이블을 하나도 찾지 못했다.)
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/bma?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul&rewriteBatchedStatements=true}
+    username: ${DB_USERNAME:bma}
+    password: ${DB_PASSWORD:bma1234}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 3000
+
+  jpa:
+    # 트랜잭션 밖에서 지연 로딩이 일어나지 않도록 끈다.
+    open-in-view: false
+    hibernate:
+      # 엔티티와 스키마가 어긋나면 기동을 막는다. 운영에서도 이 설정을 유지한다.
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+          # saveAll 등의 일괄 저장이 실제로 배치로 나가도록 한다.
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  jackson:
+    # 응답 JSON 에 null 필드를 싣지 않아 페이로드를 줄인다.
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    # 오류 응답은 GlobalExceptionHandler 가 만든다. 기본 오류 페이지에 내부 정보를 노출하지 않는다.
+    include-message: never
+    include-stacktrace: never
+
+app:
+  jwt:
+    # 운영 프로파일에서 이 기본값을 그대로 쓰면 기동이 중단된다(JwtTokenProvider 참고).
+    secret: ${JWT_SECRET:change-this-development-secret-key-at-least-32-bytes}
+    access-token-seconds: ${JWT_ACCESS_SECONDS:1800}
+    refresh-token-seconds: ${JWT_REFRESH_SECONDS:1209600}
+
+  storage:
+    root: ${STORAGE_ROOT:./uploads}
+    max-file-size-bytes: ${STORAGE_MAX_FILE_SIZE:10485760}
+    # 이 목록에 없는 MIME 타입은 거부된다. 파일 시그니처도 함께 검사한다.
+    allowed-content-types:
+      - image/jpeg
+      - image/png
+      - image/webp
+    max-images-per-user: ${STORAGE_MAX_IMAGES:6}
+
+  cors:
+    # 자격 증명을 함께 보내므로 와일드카드(*)를 쓸 수 없다. 환경별로 명시한다.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allow-credentials: true
+
+  websocket:
+    # STOMP 핸드셰이크 허용 Origin. 운영에서는 실제 도메인만 남긴다.
+    allowed-origin-patterns: ${WS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+  payment:
+    # stub 이면 실제 승인 없이 성공을 반환한다. 운영에서는 실제 게이트웨이 키로 교체한다.
+    gateway: ${PAYMENT_GATEWAY:stub}
+    webhook-secret: ${PAYMENT_WEBHOOK_SECRET:}
+
+  matching:
+    recommendation-max-size: 50
+    queue-expire-minutes: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # health 외의 엔드포인트는 SecurityConfig 에서 ADMIN 권한을 요구한다.
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+logging:
+  level:
+    com.bma: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: WARN
+
+---
+# 로컬 개발 프로파일: SQL 로그를 켜서 쿼리를 확인하기 쉽게 한다.
+spring:
+  config:
+    activate:
+      on-profile: local
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.bma: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    com.zaxxer.hikari: DEBUG
+    org.hibernate.engine.jdbc.env.internal: DEBUG

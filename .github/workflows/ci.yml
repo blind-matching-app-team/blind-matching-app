@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 21 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 준비
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/main' }}
+
+      - name: Gradle Wrapper 실행 권한 부여
+        run: chmod +x gradlew
+
+      - name: 빌드 및 테스트
+        run: ./gradlew --no-daemon clean build
+
+      - name: 테스트 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            backend/build/reports/tests/test
+            backend/build/test-results/test
+          retention-days: 7
+          if-no-files-found: ignore
+
+  validate-docker-compose:
+    name: validate-docker-compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: docker-compose.yml 문법 검증
+        run: docker compose config --quiet
+
+      - name: Docker 빌드 파일 및 초기화 SQL 존재 확인
+        shell: bash
+        run: |
+          set -e
+          files=(
+            "backend/Dockerfile"
+            "backend/database/BMA_MYSQL_SCHEMA_V1_0.sql"
+            "backend/database/V1_1__profile_image_object_key.sql"
+          )
+          for file in "${files[@]}"; do
+            test -f "$file" || { echo "::error::$file 파일이 없습니다."; exit 1; }
+          done
+
+      - name: 백엔드 Docker 이미지 빌드 검증
+        run: docker build -t bma-backend-ci ./backend
