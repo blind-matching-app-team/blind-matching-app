@@ -8,13 +8,13 @@ export const handlers = [
         code: 'SUCCESS',
         message: '요청이 정상 처리되었습니다.',
         data: {
-        queueId: 1001,
-        queueStatus: 'WAITING',
+          queueId: 1001,
+          queueStatus: 'WAITING',
+        },
       },
-    },
-  {
-    status: 200,
-  },
-);
-}),
+      {
+        status: 200,
+      },
+    );
+  }),
 ];

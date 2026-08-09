@@ -6,10 +6,10 @@ import './index.css';
 
 async function enableMocking() {
   if (!import.meta.env.DEV) {
-  return;
-}
+    return;
+  }
 
-const { worker } = await import('./mocks/browser');
+  const { worker } = await import('./mocks/browser');
 
   await worker.start({
     onUnhandledRequest: 'bypass',
@@ -19,7 +19,7 @@ const { worker } = await import('./mocks/browser');
 enableMocking().then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-    <RouterProvider router={router} />
+      <RouterProvider router={router} />
     </React.StrictMode>,
   );
 });
