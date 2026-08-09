@@ -67,18 +67,22 @@ jobs:
       - name: docker-compose.yml 문법 검증
         run: docker compose config --quiet
 
-      - name: Docker 빌드 파일 및 초기화 SQL 존재 확인
+      - name: Docker 빌드 파일 및 마이그레이션 존재 확인
         shell: bash
         run: |
           set -e
-          files=(
-            "backend/Dockerfile"
-            "backend/database/BMA_MYSQL_SCHEMA_V1_0.sql"
-            "backend/database/V1_1__profile_image_object_key.sql"
-          )
-          for file in "${files[@]}"; do
-            test -f "$file" || { echo "::error::$file 파일이 없습니다."; exit 1; }
-          done
+          test -f backend/Dockerfile || { echo "::error::backend/Dockerfile 파일이 없습니다."; exit 1; }
+
+          migrations="backend/src/main/resources/db/migration"
+          # 마이그레이션이 통째로 사라지면 앱은 빈 스키마에 붙어 기동 후에야 깨진다.
+          # 여기서 먼저 막는다.
+          test -d "$migrations" || { echo "::error::$migrations 디렉터리가 없습니다."; exit 1; }
+          count=$(find "$migrations" -maxdepth 1 -name 'V*__*.sql' | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::$migrations 에 Flyway 마이그레이션이 없습니다."
+            exit 1
+          fi
+          echo "마이그레이션 $count 개를 확인했습니다."
 
       - name: 백엔드 Docker 이미지 빌드 검증
         run: docker build -t bma-backend-ci ./backend

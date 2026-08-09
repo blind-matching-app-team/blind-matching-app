@@ -13,12 +13,28 @@ spring:
       maximum-pool-size: ${DB_POOL_SIZE:10}
       connection-timeout: 3000
 
+  flyway:
+    # 기동 시 아직 적용되지 않은 마이그레이션을 버전 순서대로 적용한다.
+    enabled: true
+    locations: classpath:db/migration
+    # 이미 적용된 마이그레이션 파일이 수정되면 체크섬 불일치로 기동을 막는다.
+    # 적용이 끝난 파일은 고치지 말고 새 버전을 추가해야 한다.
+    validate-on-migrate: true
+    # 테이블이 이미 있는데 이력 테이블이 없는 스키마에서는 일부러 실패시킨다.
+    # 자동 baseline 은 V1 을 "적용된 것으로 간주하고 건너뛰어" 실제 스키마와
+    # 이력이 어긋난 채로 굴러가게 만든다. 기존 DB 도입은 문서의 절차를 따른다.
+    baseline-on-migrate: false
+    # flyway clean 은 스키마의 모든 객체를 지운다. 실수로도 못 돌리게 막는다.
+    clean-disabled: true
+
   jpa:
     # 트랜잭션 밖에서 지연 로딩이 일어나지 않도록 끈다.
     open-in-view: false
     hibernate:
-      # 엔티티와 스키마가 어긋나면 기동을 막는다. 운영에서도 이 설정을 유지한다.
-      ddl-auto: update
+      # 스키마 생성/변경은 전적으로 Flyway 가 담당한다.
+      # Hibernate 는 엔티티와 실제 스키마가 어긋나면 기동을 막기만 한다.
+      # (update 로 두면 Hibernate 가 스키마를 말없이 고쳐 마이그레이션 이력과 어긋난다.)
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
@@ -78,6 +94,13 @@ app:
     # stub 이면 실제 승인 없이 성공을 반환한다. 운영에서는 실제 게이트웨이 키로 교체한다.
     gateway: ${PAYMENT_GATEWAY:stub}
     webhook-secret: ${PAYMENT_WEBHOOK_SECRET:}
+    toss:
+      api-base-url: ${TOSS_API_BASE_URL:https://api.tosspayments.com}
+      # 테스트 키는 test_ 로, 라이브 키는 live_ 로 시작한다.
+      # 두 키는 세트로만 동작하며 섞어 쓰면 토스가 INVALID_API_KEY 를 반환한다.
+      # 운영 프로파일이 아닌데 live_ 키가 들어오면 TossApiKeyGuard 가 기동을 막는다.
+      client-key: ${TOSS_CLIENT_KEY:}
+      secret-key: ${TOSS_SECRET_KEY:}
 
   matching:
     recommendation-max-size: 50
