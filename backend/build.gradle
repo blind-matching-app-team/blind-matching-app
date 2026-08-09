@@ -24,6 +24,13 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
 
+    // DB 스키마 버전 관리. 기동 시 classpath:db/migration 의 마이그레이션을 순서대로 적용한다.
+    // 스키마 변경은 반드시 새 마이그레이션 파일로만 한다(backend/docs/DB_MIGRATION.md 참고).
+    implementation 'org.flywaydb:flyway-core'
+    // MySQL 지원은 Flyway 10 부터 별도 모듈로 분리되어 있다. 이게 없으면 기동 시
+    // "Unsupported Database: MySQL" 로 실패한다.
+    runtimeOnly 'org.flywaydb:flyway-mysql'
+
     // @ConfigurationProperties 바인딩 메타데이터 생성(IDE 자동완성용)
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 

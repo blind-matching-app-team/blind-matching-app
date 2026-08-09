@@ -1,53 +1,17 @@
 -- =====================================================================
--- Blind Matching App - MySQL Schema V1.0
--- Based on planning document v1.1 and extensible domain design
--- MySQL 8.0+, InnoDB, UTF8MB4
--- 모든 업무 테이블은 논리삭제 및 등록/수정 감사 컬럼을 포함
+-- V1: 초기 스키마 (업무 테이블 32개)
+--
+-- BMA-14 에서 설계한 BMA_MYSQL_SCHEMA_V1_0.sql 을 Flyway 마이그레이션으로 옮긴 것이다.
+-- 원본과 달라진 점:
+--   - CREATE DATABASE / USE 제거: 대상 스키마는 접속 URL 이 결정한다.
+--     마이그레이션이 DB 이름을 하드코딩하면 테스트/운영 스키마에서 재사용할 수 없다.
+--   - DROP TABLE IF EXISTS 제거: V1 은 빈 스키마에만 적용되므로 불필요하고,
+--     혹시라도 재실행되면 운영 데이터를 지우는 사고로 이어진다.
+--   - 공통 코드 시드 데이터는 V2 로 분리했다.
 -- =====================================================================
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
--- 주의: Linux MySQL 은 기본적으로 DB 이름 대소문자를 구분한다(lower_case_table_names=0).
--- 이전 버전은 대문자 `BMA` 를 생성했지만 docker-compose 와 애플리케이션은 소문자 `bma` 에
--- 접속하도록 되어 있어, 테이블이 하나도 보이지 않고 ddl-auto=validate 가 실패했다.
--- 이름을 소문자 `bma` 로 통일한다.
-CREATE DATABASE IF NOT EXISTS `bma`
-  DEFAULT CHARACTER SET utf8mb4
-  DEFAULT COLLATE utf8mb4_unicode_ci;
-USE `bma`;
-
-DROP TABLE IF EXISTS `PY_PAYMENT_EVENT`;
-DROP TABLE IF EXISTS `PY_PAYMENT`;
-DROP TABLE IF EXISTS `PY_PRODUCT`;
-DROP TABLE IF EXISTS `SY_USER_AGREEMENT`;
-DROP TABLE IF EXISTS `SY_TERMS`;
-DROP TABLE IF EXISTS `NT_NOTIFICATION`;
-DROP TABLE IF EXISTS `SF_USER_SANCTION`;
-DROP TABLE IF EXISTS `SF_USER_REPORT`;
-DROP TABLE IF EXISTS `SF_USER_BLOCK`;
-DROP TABLE IF EXISTS `RV_REVEAL_CONSENT`;
-DROP TABLE IF EXISTS `RV_REVEAL_PROGRESS`;
-DROP TABLE IF EXISTS `RV_REVEAL_POLICY`;
-DROP TABLE IF EXISTS `CH_CHAT_MESSAGE`;
-DROP TABLE IF EXISTS `CH_CHAT_ROOM_MEMBER`;
-DROP TABLE IF EXISTS `CH_CHAT_ROOM`;
-DROP TABLE IF EXISTS `MT_MATCH`;
-DROP TABLE IF EXISTS `MT_USER_ACTION`;
-DROP TABLE IF EXISTS `MT_RECOMMENDATION_HISTORY`;
-DROP TABLE IF EXISTS `MT_MATCH_QUEUE`;
-DROP TABLE IF EXISTS `ON_USER_ANSWER`;
-DROP TABLE IF EXISTS `ON_QUESTION_OPTION`;
-DROP TABLE IF EXISTS `ON_QUESTION`;
-DROP TABLE IF EXISTS `US_USER_VERIFICATION`;
-DROP TABLE IF EXISTS `US_USER_INTEREST`;
-DROP TABLE IF EXISTS `US_INTEREST`;
-DROP TABLE IF EXISTS `US_USER_PREFERENCE`;
-DROP TABLE IF EXISTS `US_PROFILE_IMAGE`;
-DROP TABLE IF EXISTS `US_USER_PROFILE`;
-DROP TABLE IF EXISTS `US_USER_TOKEN`;
-DROP TABLE IF EXISTS `US_USER`;
-DROP TABLE IF EXISTS `CM_CODE`;
-DROP TABLE IF EXISTS `CM_CODE_GROUP`;
 
 -- ---------------------------------------------------------------------
 -- CM_CODE_GROUP: 공통 코드 그룹
@@ -823,51 +787,6 @@ ALTER TABLE `CH_CHAT_ROOM`
     ADD CONSTRAINT `FK_CH_CHAT_ROOM_LAST_MESSAGE` FOREIGN KEY (`LAST_MESSAGE_ID`)
     REFERENCES `CH_CHAT_MESSAGE` (`MESSAGE_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
-SET FOREIGN_KEY_CHECKS = 1;
-
--- 초기 공통 코드 예시
-INSERT INTO `CM_CODE_GROUP`
-(`CODE_GROUP`, `CODE_GROUP_NAME`, `DESCRIPTION`, `USE_YN`, `INSERT_USER`)
-VALUES
-('GENDER', '성별', '사용자 성별 코드', 'Y', 'SYSTEM'),
-('USER_STATUS', '회원 상태', '회원 서비스 상태', 'Y', 'SYSTEM'),
-('ACTION_TYPE', '사용자 행동', '좋아요 및 패스 유형', 'Y', 'SYSTEM'),
-('MATCH_STATUS', '매칭 상태', '매칭 진행 상태', 'Y', 'SYSTEM'),
-('REPORT_TYPE', '신고 유형', '사용자 신고 분류', 'Y', 'SYSTEM')
-ON DUPLICATE KEY UPDATE `UPDATE_USER`='SYSTEM', `UPDATE_DATE`=CURRENT_TIMESTAMP(6);
-
-INSERT INTO `CM_CODE`
-(`CODE_GROUP`, `CODE`, `CODE_NAME`, `SORT_ORDER`, `USE_YN`, `INSERT_USER`)
-VALUES
-('GENDER', 'MALE', '남성', 1, 'Y', 'SYSTEM'),
-('GENDER', 'FEMALE', '여성', 2, 'Y', 'SYSTEM'),
-('USER_STATUS', 'PENDING', '가입 대기', 1, 'Y', 'SYSTEM'),
-('USER_STATUS', 'ACTIVE', '정상', 2, 'Y', 'SYSTEM'),
-('USER_STATUS', 'SUSPENDED', '정지', 3, 'Y', 'SYSTEM'),
-('USER_STATUS', 'WITHDRAWN', '탈퇴', 4, 'Y', 'SYSTEM'),
-('ACTION_TYPE', 'LIKE', '좋아요', 1, 'Y', 'SYSTEM'),
-('ACTION_TYPE', 'SUPER_LIKE', '슈퍼 좋아요', 2, 'Y', 'SYSTEM'),
-('ACTION_TYPE', 'PASS', '패스', 3, 'Y', 'SYSTEM'),
-('MATCH_STATUS', 'ACTIVE', '진행 중', 1, 'Y', 'SYSTEM'),
-('MATCH_STATUS', 'UNMATCHED', '매칭 해제', 2, 'Y', 'SYSTEM'),
-('MATCH_STATUS', 'BLOCKED', '차단 종료', 3, 'Y', 'SYSTEM'),
-('REPORT_TYPE', 'ABUSE', '욕설 및 괴롭힘', 1, 'Y', 'SYSTEM'),
-('REPORT_TYPE', 'FAKE', '허위 프로필', 2, 'Y', 'SYSTEM'),
-('REPORT_TYPE', 'FRAUD', '사기 및 금전 요구', 3, 'Y', 'SYSTEM'),
-('REPORT_TYPE', 'SEXUAL', '부적절한 성적 콘텐츠', 4, 'Y', 'SYSTEM'),
-('REPORT_TYPE', 'ETC', '기타', 99, 'Y', 'SYSTEM')
-ON DUPLICATE KEY UPDATE `UPDATE_USER`='SYSTEM', `UPDATE_DATE`=CURRENT_TIMESTAMP(6);
-
--- 3단계 Reveal 정책 기본값
-INSERT INTO `RV_REVEAL_POLICY`
-(`REVEAL_LEVEL`, `REVEAL_NAME`, `MIN_MESSAGE_COUNT`, `MIN_CHAT_MINUTES`, `MUTUAL_CONSENT_YN`, `DISCLOSE_SCOPE_JSON`, `USE_YN`, `INSERT_USER`)
-VALUES
-(0, '미공개', 0, 0, 'N', JSON_OBJECT('image','hidden','name','hidden'), 'Y', 'SYSTEM'),
-(1, '실루엣 및 부분 공개', 20, 10, 'N', JSON_OBJECT('image','silhouette','profile','partial'), 'Y', 'SYSTEM'),
-(2, '전체 공개', 50, 30, 'Y', JSON_OBJECT('image','full','profile','full'), 'Y', 'SYSTEM')
-ON DUPLICATE KEY UPDATE `UPDATE_USER`='SYSTEM', `UPDATE_DATE`=CURRENT_TIMESTAMP(6);
-
--- 초기화 세션에서 껐던 외래키 검사를 다시 켠다.
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- 운영 권장 규칙

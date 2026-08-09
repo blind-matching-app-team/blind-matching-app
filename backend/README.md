@@ -38,7 +38,7 @@ PM 저장소의 모노레포 구조를 사용하며, 백엔드 소스는 `backen
 ```text
 blind-matching-app/
 ├── backend/
-│   ├── database/
+│   ├── docs/
 │   ├── gradle/
 │   ├── src/
 │   ├── .dockerignore
@@ -178,9 +178,15 @@ Health Check 정상 응답:
 | Collation | `utf8mb4_0900_ai_ci` |
 | Time Zone | `Asia/Seoul` |
 
-> `backend/database/` 아래 초기화 SQL은 MySQL 데이터 볼륨이 처음 생성될 때 한 번만 실행됩니다.
+> 테이블 생성과 이후의 모든 스키마 변경은 애플리케이션 기동 시 **Flyway**가 담당합니다.
+> 마이그레이션 파일은 `backend/src/main/resources/db/migration/` 에 있습니다.
+> 작성 규칙과 운영 절차는 [DB 마이그레이션 가이드](docs/DB_MIGRATION.md)를 참고하세요.
+>
+> DB 콘솔에서 직접 `ALTER TABLE` 하거나 `ddl-auto`를 `update`로 되돌리면
+> 마이그레이션 이력과 실제 스키마가 어긋납니다. 스키마 변경은 새 마이그레이션 파일로만 합니다.
 
-SQL 파일을 수정한 뒤 처음부터 다시 적용하려면 반드시 기존 볼륨을 삭제해야 합니다.
+예전 `docker-entrypoint-initdb.d` 방식으로 만들어진 볼륨이 남아 있으면 Flyway가 기동을 거부합니다.
+이 경우 기존 볼륨을 삭제하고 처음부터 다시 만들어야 합니다.
 
 ```powershell
 docker compose down -v
@@ -595,7 +601,6 @@ docker compose logs --tail=200 app
 
 ## 남은 작업
 
-- Flyway 기반 DB Migration 도입
 - 이미지 블러 및 실루엣 생성 후처리 파이프라인
 - S3 Storage 구현체
 - 실제 PG 결제 Gateway 연동

@@ -43,8 +43,10 @@ services:
 
     volumes:
       - bma_mysql:/var/lib/mysql
-      - ./backend/database/BMA_MYSQL_SCHEMA_V1_0.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./backend/database/V1_1__profile_image_object_key.sql:/docker-entrypoint-initdb.d/02-profile-image.sql:ro
+      # 테이블 생성은 app 기동 시 Flyway 가 담당한다.
+      # docker-entrypoint-initdb.d 마운트는 볼륨이 비어 있을 때 단 한 번만 실행되어
+      # 이후의 스키마 변경이 영영 반영되지 않으므로 제거했다.
+      # 자세한 내용은 backend/docs/DB_MIGRATION.md 참고.
 
     healthcheck:
       test:
