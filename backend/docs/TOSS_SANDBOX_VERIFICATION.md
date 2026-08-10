@@ -61,15 +61,26 @@ TOSS_TEST_AMOUNT=1000
 다만 빌링키 발급은 요건이 더 느슨하다. **테스트 환경에서는 카드번호 앞 여섯 자리(BIN)만
 유효하면 자동결제가 등록된다.** (라이브는 전체 번호가 유효해야 한다.)
 
-그래서 전체 카드번호를 파일에 적을 필요가 없다. **본인 카드 앞 6자리 + 나머지 임의 숫자**를 쓴다.
+즉 **실제 카드번호를 쓸 필요가 없다.** 유효한 국내 카드사 BIN 여섯 자리에
+나머지 열 자리를 임의로 채우면 된다. 본인 카드일 필요도 없다.
 
 | 항목 | 넣을 값 |
 | --- | --- |
-| `TOSS_TEST_CARD_NUMBER` | 본인 카드 앞 6자리(BIN) + 임의 숫자 10자리 |
+| `TOSS_TEST_CARD_NUMBER` | 유효한 국내 카드사 BIN 6자리 + 임의 숫자 10자리 |
 | `TOSS_TEST_CARD_EXPIRY_YEAR` | 미래의 아무 두 자리 연도 (예: `30`) |
 | `TOSS_TEST_CARD_EXPIRY_MONTH` | 두 자리 월 (예: `12`) |
 | `TOSS_TEST_CARD_IDENTITY` | 생년월일 6자리(YYMMDD) 또는 사업자번호 10자리 |
 | `TOSS_TEST_CARD_PASSWORD` | 아무 두 자리 (예: `00`) |
+
+지어낸 BIN 은 카드사 판별에 실패해 거부된다. 아래는 실제로 3단계를 통과한 조합이다.
+
+```bash
+TOSS_TEST_CARD_NUMBER=4854797481503803   # BIN 485479, 체크카드로 인식됨
+TOSS_TEST_CARD_EXPIRY_YEAR=30
+TOSS_TEST_CARD_EXPIRY_MONTH=12
+TOSS_TEST_CARD_IDENTITY=900101
+TOSS_TEST_CARD_PASSWORD=00
+```
 
 본인인증창이 뜨는 경우 인증번호는 `000000` 이다.
 
@@ -103,6 +114,18 @@ node backend/scripts/verify-toss-sandbox.js
 승인 상태가 `DONE` 이 아니거나 승인 금액이 요청 금액과 다르면 실패로 처리한다.
 개발자센터 > **테스트 결제내역**에서 출력된 `orderId` 로 대조할 수 있다.
 테스트 환경이므로 실제 금액은 차감되지 않는다.
+
+### 검증 기록
+
+| 항목 | 값 |
+| --- | --- |
+| 실행일 | 2026-08-10 |
+| orderId | `bma-verify-1786348782101-2d3455` |
+| 빌링키 발급 | HTTP 200 |
+| 자동결제 승인 | HTTP 200, `DONE`, 1,000원 |
+| 결제 취소 | HTTP 200, `CANCELED`, 1,000원 |
+
+자동결제(빌링) API 가 테스트 환경에서 열려 있음을 이 실행으로 확인했다.
 
 ---
 
