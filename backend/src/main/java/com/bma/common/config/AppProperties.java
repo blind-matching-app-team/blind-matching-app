@@ -78,7 +78,22 @@ public record AppProperties(
      * @param gateway       사용할 게이트웨이 구현 키워드(stub/toss 등)
      * @param webhookSecret 웹훅 서명 검증용 시크릿. 비어 있으면 검증을 건너뛰되 경고 로그를 남긴다.
      */
-    public record Payment(String gateway, String webhookSecret) {
+    public record Payment(String gateway, String webhookSecret, Toss toss) {
+
+        /**
+         * 토스페이먼츠 접속 정보.
+         *
+         * <p>클라이언트 키와 시크릿 키는 세트로 발급되며, 테스트({@code test_})와
+         * 라이브({@code live_})를 섞어 쓰면 토스가 {@code INVALID_API_KEY}를 반환한다.
+         * 실수로 라이브 키가 개발 환경에 들어오는 것을 막기 위해
+         * {@link com.bma.payment.config.TossApiKeyGuard}가 기동 시점에 검증한다.</p>
+         *
+         * @param apiBaseUrl API 호스트. 기본값은 {@code https://api.tosspayments.com}
+         * @param clientKey  클라이언트 키. 프런트엔드에 노출되는 값
+         * @param secretKey  시크릿 키. 서버 전용이며 절대 저장소에 커밋하지 않는다
+         */
+        public record Toss(String apiBaseUrl, String clientKey, String secretKey) {
+        }
     }
 
     /**
