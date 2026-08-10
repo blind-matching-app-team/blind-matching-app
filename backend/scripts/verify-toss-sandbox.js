@@ -229,7 +229,9 @@ async function main() {
     const amount = Number(process.env.TOSS_TEST_AMOUNT || 1000);
 
     const card = {
-        number: requireEnv('TOSS_TEST_CARD_NUMBER', '개발자센터 > 테스트 > 테스트 카드 정보에서 확인하세요. 테스트 환경은 앞 6자리(BIN)만 유효하면 됩니다.'),
+        // 토스는 테스트용 카드번호를 제공하지 않는다. 테스트 환경은 앞 6자리(BIN)만
+        // 유효하면 등록되므로, 본인 카드 앞 6자리 + 임의 숫자를 쓰면 실제 번호를 남기지 않아도 된다.
+        number: requireEnv('TOSS_TEST_CARD_NUMBER', '본인 카드 앞 6자리(BIN) + 임의 숫자 10자리를 넣으세요. 테스트 환경은 BIN 만 유효하면 등록됩니다.'),
         expirationYear: requireEnv('TOSS_TEST_CARD_EXPIRY_YEAR', '두 자리 연도입니다. 예: 30'),
         expirationMonth: requireEnv('TOSS_TEST_CARD_EXPIRY_MONTH', '두 자리 월입니다. 예: 12'),
         identityNumber: requireEnv('TOSS_TEST_CARD_IDENTITY', '생년월일 6자리(YYMMDD) 또는 사업자번호 10자리입니다.'),
