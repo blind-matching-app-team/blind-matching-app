@@ -1,0 +1,28 @@
+# 팀원은 Windows, CI 는 Linux 에서 돌기 때문에 줄바꿈이 섞이면
+# "내 컴퓨터에선 되는데" 문제가 그대로 재현된다. 저장소 안에서는 항상 LF 로 정규화한다.
+* text=auto
+
+# Windows 전용 스크립트는 CRLF 를 유지해야 정상 동작한다.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Linux 러너에서 실행되는 스크립트는 반드시 LF 여야 한다.
+# gradlew 가 CRLF 로 커밋되면 CI 에서 "bad interpreter" 로 빌드가 깨진다.
+gradlew text eol=lf
+*.sh text eol=lf
+
+# SQL/YAML 도 컨테이너 안에서 읽히므로 LF 로 고정한다.
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# 바이너리로 취급해 diff/정규화 대상에서 제외한다.
+*.jar binary
+*.war binary
+*.docx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

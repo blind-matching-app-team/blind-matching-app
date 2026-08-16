@@ -1,0 +1,113 @@
+# ---------------------------------------------------------------------
+# Blind Matching App 로컬 개발 환경
+#
+# 최초 실행 및 이미지 재빌드
+#   docker compose up -d --build
+#
+# 상태 확인
+#   docker compose ps
+#
+# 애플리케이션 로그
+#   docker compose logs -f app
+#
+# 종료
+#   docker compose down
+#
+# DB 볼륨까지 삭제 후 스키마 재생성
+#   docker compose down -v
+#   docker compose up -d --build
+# ---------------------------------------------------------------------
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: bma-mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bma}
+      MYSQL_USER: ${MYSQL_USER:-bma}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-bma1234}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root1234}
+      TZ: Asia/Seoul
+
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+09:00
+      - --slow-query-log=ON
+      - --long-query-time=1
+
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+
+    volumes:
+      - bma_mysql:/var/lib/mysql
+      # 테이블 생성은 app 기동 시 Flyway 가 담당한다.
+      # docker-entrypoint-initdb.d 마운트는 볼륨이 비어 있을 때 단 한 번만 실행되어
+      # 이후의 스키마 변경이 영영 반영되지 않으므로 제거했다.
+      # 자세한 내용은 backend/docs/DB_MIGRATION.md 참고.
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: bma-app
+    restart: unless-stopped
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    environment:
+      TZ: Asia/Seoul
+      SPRING_PROFILES_ACTIVE: local
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-bma}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul&rewriteBatchedStatements=true&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${MYSQL_USER:-bma}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-bma1234}
+      JWT_SECRET: ${JWT_SECRET:-change-this-development-secret-key-at-least-32-bytes}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      WS_ALLOWED_ORIGINS: ${WS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      STORAGE_ROOT: /app/uploads
+
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+    volumes:
+      - bma_uploads:/app/uploads
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: bma-redis
+    restart: unless-stopped
+    profiles: ["cache"]
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - bma_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  bma_mysql:
+    name: bma-mysql-data
+  bma_redis:
+    name: bma-redis-data
+  bma_uploads:
+    name: bma-uploads-data
