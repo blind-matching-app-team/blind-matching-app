@@ -29,19 +29,38 @@ public final class TestProperties {
     /**
      * 저장소 설정만 지정한 설정을 만든다.
      *
-     * @param storageRoot      저장 루트
+     * @param storageRoot       저장 루트
      * @param maxFileSizeBytes 최대 파일 크기
-     * @param maxImages        사용자당 이미지 수
+     * @param maxImages         사용자당 이미지 수
      * @return 테스트용 설정
      */
     public static AppProperties withStorage(String storageRoot, long maxFileSizeBytes, int maxImages) {
         return new AppProperties(
                 new AppProperties.Jwt(TEST_SECRET, 1800, 1_209_600),
-                new AppProperties.Storage(storageRoot, maxFileSizeBytes,
-                        List.of("image/jpeg", "image/png", "image/webp"), maxImages),
-                new AppProperties.Cors(List.of("http://localhost:3000"), List.of("GET", "POST"), true),
-                new AppProperties.Websocket(List.of("http://localhost:3000")),
-                new AppProperties.Payment("stub", ""),
-                new AppProperties.Matching(50, 30));
+                new AppProperties.Storage(
+                        storageRoot,
+                        maxFileSizeBytes,
+                        List.of("image/jpeg", "image/png", "image/webp"),
+                        maxImages
+                ),
+                new AppProperties.Cors(
+                        List.of("http://localhost:3000"),
+                        List.of("GET", "POST"),
+                        true
+                ),
+                new AppProperties.Websocket(
+                        List.of("http://localhost:3000")
+                ),
+                new AppProperties.Payment(
+                        "stub",
+                        "",
+                        new AppProperties.Payment.Toss(
+                                "https://api.tosspayments.com",
+                                "test_ck_dummy",
+                                "test_sk_dummy"
+                        )
+                ),
+                new AppProperties.Matching(50, 30)
+        );
     }
 }
