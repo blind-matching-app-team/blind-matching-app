@@ -13,16 +13,3 @@ Thumbs.db
 
 # 로그
 *.log
-# Backend build outputs
-backend/.gradle/
-backend/build/
-backend/uploads/
-
-# Frontend build outputs
-frontend/node_modules/
-frontend/dist/
-
-# QA dependencies and reports
-qa/node_modules/
-qa/playwright-report/
-qa/test-results/
