@@ -46,6 +46,9 @@ public class User extends BaseAuditEntity {
     /** 기본 권한 코드. */
     public static final String ROLE_USER = "USER";
 
+    /** 이메일/비밀번호로 가입한 계정의 제공자 값. */
+    public static final String PROVIDER_LOCAL = "LOCAL";
+
     /** 사용자 ID(PK). */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -68,7 +71,7 @@ public class User extends BaseAuditEntity {
 
     /** 로그인 제공자(LOCAL/KAKAO/GOOGLE/NAVER/APPLE). */
     @Column(name = "LOGIN_PROVIDER", nullable = false)
-    private String loginProvider = "LOCAL";
+    private String loginProvider = PROVIDER_LOCAL;
 
     /** 소셜 제공자의 사용자 키. */
     @JsonIgnore
@@ -99,6 +102,15 @@ public class User extends BaseAuditEntity {
     private LocalDateTime lastLoginDate;
 
     /**
+     * 정지 종료 예정 일시. 영구 정지이거나 정지 상태가 아니면 {@code null}.
+     *
+     * <p>제재 이력({@code SF_USER_SANCTION})이 정본이고 이 컬럼은 로그인 경로에서
+     * 빠르게 읽기 위한 값이다. 제재 행이 없을 때의 대비책으로도 쓴다.</p>
+     */
+    @Column(name = "SUSPENDED_UNTIL")
+    private LocalDateTime suspendedUntil;
+
+    /**
      * 로컬 가입 계정을 만든다.
      *
      * @param email        로그인 이메일
@@ -124,6 +136,27 @@ public class User extends BaseAuditEntity {
      */
     public boolean isActive() {
         return STATUS_ACTIVE.equals(userStatus) && !isDeleted();
+    }
+
+    /**
+     * 이용 정지 상태인지 확인한다.
+     *
+     * <p>탈퇴({@code WITHDRAWN})나 가입 대기({@code PENDING})와 구분한다.
+     * 정지일 때만 프론트가 이용정지 화면을 띄우고, 나머지는 일반 오류로 처리한다.</p>
+     *
+     * @return 정지 상태이면 {@code true}
+     */
+    public boolean isSuspended() {
+        return STATUS_SUSPENDED.equals(userStatus);
+    }
+
+    /**
+     * 소셜 계정으로 가입했는지 확인한다.
+     *
+     * @return {@code LOCAL} 이 아니면 {@code true}
+     */
+    public boolean isSocialAccount() {
+        return loginProvider != null && !PROVIDER_LOCAL.equals(loginProvider);
     }
 
     /** 마지막 로그인 시각을 현재로 갱신한다. */

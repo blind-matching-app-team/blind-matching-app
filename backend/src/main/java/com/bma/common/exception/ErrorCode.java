@@ -45,6 +45,13 @@ public enum ErrorCode {
     ACCOUNT_NOT_ACTIVE(HttpStatus.FORBIDDEN, "AUTH_007", "이용할 수 없는 계정 상태입니다."),
     /** 이미 회수된 리프레시 토큰이 다시 제출된 경우(탈취 의심). */
     TOKEN_REUSE_DETECTED(HttpStatus.UNAUTHORIZED, "AUTH_008", "만료되었거나 이미 사용된 토큰입니다. 다시 로그인해 주세요."),
+    /**
+     * 정지된 계정의 로그인 시도.
+     *
+     * <p>{@link #ACCOUNT_NOT_ACTIVE} 와 분리한 이유: 프론트가 이용정지 화면(S1-18~21)을 띄우려면
+     * 정지 종류와 해제 시각이 필요하다. 상세는 응답 {@code data} 에 담긴다.</p>
+     */
+    ACCOUNT_SUSPENDED(HttpStatus.FORBIDDEN, "AUTH_009", "이용이 정지된 계정입니다."),
 
     // ── 회원 ────────────────────────────────────────────────────────────────
     /** 사용자를 찾을 수 없음. */

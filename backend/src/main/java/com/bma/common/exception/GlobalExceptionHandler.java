@@ -39,12 +39,13 @@ public class GlobalExceptionHandler {
      * 업무 규칙 위반. 예상된 실패이므로 WARN 레벨로만 남긴다.
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<?>> handleBusiness(BusinessException e, HttpServletRequest request) {
         ErrorCode errorCode = e.getErrorCode();
         log.warn("[업무 오류] {} {} - {}: {}", request.getMethod(), request.getRequestURI(),
                 errorCode.getCode(), e.getMessage());
+        // 상세가 있으면 응답 data 에 실어 프론트가 화면을 분기할 수 있게 한다.
         return ResponseEntity.status(errorCode.getStatus())
-                .body(ApiResponse.error(errorCode.getCode(), e.getMessage()));
+                .body(ApiResponse.error(errorCode.getCode(), e.getMessage(), e.getDetails()));
     }
 
     /**
