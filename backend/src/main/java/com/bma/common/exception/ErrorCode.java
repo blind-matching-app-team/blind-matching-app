@@ -52,6 +52,21 @@ public enum ErrorCode {
      * 정지 종류와 해제 시각이 필요하다. 상세는 응답 {@code data} 에 담긴다.</p>
      */
     ACCOUNT_SUSPENDED(HttpStatus.FORBIDDEN, "AUTH_009", "이용이 정지된 계정입니다."),
+    /** 콘솔 등록이 끝나지 않았거나 지원하지 않는 소셜 제공자. */
+    SOCIAL_PROVIDER_UNSUPPORTED(HttpStatus.BAD_REQUEST, "AUTH_010", "지원하지 않는 소셜 로그인입니다."),
+    /** state 불일치. CSRF 또는 만료된 인가 요청. */
+    SOCIAL_STATE_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_011", "소셜 로그인 요청이 유효하지 않습니다. 다시 시도해 주세요."),
+    /** 토큰 교환 또는 사용자 정보 조회 실패. */
+    SOCIAL_AUTH_FAILED(HttpStatus.BAD_REQUEST, "AUTH_012", "소셜 로그인에 실패했습니다."),
+    /**
+     * 제공자가 이메일을 주지 않은 경우.
+     *
+     * <p>{@code US_USER.EMAIL} 이 NOT NULL 이라 이메일 없이는 가입할 수 없다.
+     * 카카오는 이메일을 필수 동의로 받으려면 비즈 앱 전환과 검수가 필요하다.</p>
+     */
+    SOCIAL_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_013", "이메일 제공에 동의해야 가입할 수 있습니다."),
+    /** 일회용 로그인 티켓이 없거나 이미 사용됨. */
+    SOCIAL_TICKET_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_014", "만료되었거나 이미 사용된 로그인 요청입니다."),
 
     // ── 회원 ────────────────────────────────────────────────────────────────
     /** 사용자를 찾을 수 없음. */

@@ -72,6 +72,19 @@ public final class AuthDtos {
     }
 
     /**
+     * 소셜 로그인 티켓 교환 요청.
+     *
+     * <p>콜백이 프론트 주소로 302 하면서 넘긴 일회용 티켓을 그대로 담는다.</p>
+     *
+     * @param ticket 일회용 티켓
+     */
+    public record SocialExchangeRequest(
+            @NotBlank(message = "티켓은 필수입니다.")
+            String ticket
+    ) {
+    }
+
+    /**
      * 토큰 발급 응답.
      *
      * @param accessToken      액세스 토큰

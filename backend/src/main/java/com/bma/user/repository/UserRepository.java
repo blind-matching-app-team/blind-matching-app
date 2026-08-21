@@ -41,6 +41,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmailAndDeleted(String email, String deleted);
 
     /**
+     * 소셜 제공자와 제공자 키로 연결된 계정을 조회한다.
+     *
+     * <p>{@code UK_US_USER_PROVIDER(LOGIN_PROVIDER, PROVIDER_USER_KEY)} 유니크 제약과 짝을 이룬다.</p>
+     *
+     * @param loginProvider   로그인 제공자(KAKAO/NAVER/GOOGLE)
+     * @param providerUserKey 제공자 내 사용자 고유 키
+     * @param deleted         논리 삭제 여부
+     * @return 연결된 사용자
+     */
+    Optional<User> findByLoginProviderAndProviderUserKeyAndDeleted(String loginProvider,
+                                                                   String providerUserKey,
+                                                                   String deleted);
+
+    /**
      * 휴대전화 번호 중복 여부를 확인한다.
      *
      * <p>{@code US_USER}에 유니크 제약이 있어 사전 확인 없이 저장하면

@@ -130,6 +130,29 @@ public class User extends BaseAuditEntity {
     }
 
     /**
+     * 소셜 계정으로 가입한 사용자를 만든다.
+     *
+     * <p>비밀번호가 없으므로 {@code PASSWORD_HASH} 는 null 이다. 이 계정으로는
+     * 이메일 로그인을 할 수 없다({@code AuthService.login} 이 해시 null 을 거부한다).</p>
+     *
+     * @param email       제공자에게서 받은 이메일. 소문자로 정규화된 값을 넣는다
+     * @param provider    로그인 제공자(KAKAO/NAVER/GOOGLE)
+     * @param providerKey 제공자 내 사용자 고유 키
+     * @return 저장 대상 엔티티
+     */
+    public static User createSocial(String email, String provider, String providerKey) {
+        User user = new User();
+        user.email = email;
+        user.loginProvider = provider;
+        user.providerUserKey = providerKey;
+        // 제공자가 인증을 마친 이메일이므로 별도 인증 절차를 요구하지 않는다.
+        user.emailVerifiedYn = YesNo.Y;
+        user.userStatus = STATUS_ACTIVE;
+        user.userRole = ROLE_USER;
+        return user;
+    }
+
+    /**
      * 서비스를 이용할 수 있는 상태인지 확인한다.
      *
      * @return 정상 상태이고 논리 삭제되지 않았으면 {@code true}

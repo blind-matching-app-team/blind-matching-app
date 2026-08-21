@@ -282,19 +282,130 @@ Authorization: Bearer <accessToken>
 
 ---
 
-## 6. 소셜 로그인 — 미구현
+## 6. 소셜 로그인 (카카오 / 네이버 / 구글)
+
+**백엔드 콜백 방식**이다. 인가 화면 이동과 3사 콜백 수신을 모두 서버가 처리하므로
+클라이언트 시크릿이 브라우저에 노출되지 않는다. 프론트가 할 일은 버튼에서 링크로 보내는 것뿐이다.
 
 ```
-POST /api/v1/auth/social/{provider}
+① 프론트  →  GET  /api/v1/auth/social/{provider}/authorize     (버튼에서 이동)
+②          →  302  3사 인가 화면
+③ 3사     →  GET  /api/v1/auth/social/{provider}/callback      (서버가 받는다)
+④          →  302  {프론트 주소}?ticket=...   또는   ?error=...
+⑤ 프론트  →  POST /api/v1/auth/social/exchange { "ticket": "..." }  → TokenResponse
 ```
 
-`provider`: `kakao` / `naver` / `google`
+`provider`: `kakao` / `naver` / `google` (대소문자 무시)
 
-**아직 구현되지 않았다.** 3사 개발자 콘솔 앱 등록과 Redirect URI 설정, 클라이언트 ID·시크릿
-확보가 선행되어야 한다. 스키마는 준비돼 있다
-(`US_USER.LOGIN_PROVIDER`, `PROVIDER_USER_KEY`, `UK_US_USER_PROVIDER` 유니크 제약).
+### 왜 티켓을 한 번 더 거치나
 
-요청/응답 형태는 콘솔 연동 방식(Authorization Code vs Access Token 전달)이 정해진 뒤 확정한다.
+④에서 JWT 를 그대로 쿼리에 실으면 브라우저 히스토리와 리퍼러 헤더에 토큰이 남는다.
+그래서 **2분짜리 일회용 티켓**만 넘기고, 실제 토큰은 ⑤의 POST 로 건넨다.
+티켓은 교환 즉시 소진되며 재사용하면 `AUTH_014` 가 난다.
+
+### ① 인가 화면으로 이동
+
+```
+GET /api/v1/auth/social/kakao/authorize      (인증 불필요)
+```
+
+302 로 3사 인가 화면에 보낸다. 동시에 CSRF 방지용 `state` 를 HttpOnly 쿠키
+(`bma_oauth_state`, 5분, SameSite=Lax)에 심는다. 콜백에서 이 값을 대조한다.
+
+**프론트는 fetch 가 아니라 페이지 이동으로 호출해야 한다.** XHR 로 부르면 302 를 따라가며
+쿠키가 제대로 심기지 않는다.
+
+```html
+<a href="/api/v1/auth/social/kakao/authorize">카카오로 시작하기</a>
+```
+
+### ③④ 콜백 — 프론트가 직접 호출하지 않는다
+
+3사가 호출한다. 서버가 토큰 교환 → 사용자 정보 조회 → 가입/로그인까지 마친 뒤
+프론트 주소로 302 한다.
+
+| 결과 | 이동 주소 |
+| --- | --- |
+| 성공 | `{successRedirect}?ticket=<일회용 티켓>` |
+| 실패 | `{failureRedirect}?error=<오류 코드>` |
+
+기본값은 둘 다 `http://localhost:5173/oauth/result` 다(`OAUTH_SUCCESS_REDIRECT`,
+`OAUTH_FAILURE_REDIRECT` 로 바꾼다). 프론트는 이 경로에 결과 처리 화면을 두고
+`ticket` 이 있으면 ⑤로, `error` 가 있으면 안내를 띄우면 된다.
+
+**`error` 로 올 수 있는 값**
+
+| 코드 | 의미 |
+| --- | --- |
+| `SOCIAL_AUTH_CANCELED` | 사용자가 동의를 취소함 |
+| `AUTH_010` | 콘솔 등록이 안 된 제공자 |
+| `AUTH_011` | state 불일치. 다시 시도해야 한다 |
+| `AUTH_012` | 토큰 교환 또는 사용자 정보 조회 실패 |
+| `AUTH_013` | **제공자가 이메일을 주지 않음** (아래 참고) |
+| `AUTH_003` | 같은 이메일이 다른 수단으로 이미 가입됨 |
+| `AUTH_009` / `AUTH_007` | 정지 계정 / 이용 불가 계정 |
+
+> 콜백은 브라우저 이동이라 JSON 오류를 돌려줘도 사용자가 볼 수 없다. 그래서 모든 실패를
+> 302 + `?error=` 로 알린다. 상세 사유가 필요하면 ⑤에서 다시 확인해야 한다.
+
+### ⑤ 티켓 교환
+
+```
+POST /api/v1/auth/social/exchange     (인증 불필요)
+```
+
+```json
+{ "ticket": "..." }
+```
+
+성공하면 **이메일 로그인과 완전히 같은 `TokenResponse`** 를 돌려준다.
+`profileCompleted` 도 그대로 들어 있어 라우팅 분기가 동일하다.
+
+| 상황 | HTTP | `code` |
+| --- | --- | --- |
+| 티켓 없음/만료/이미 사용 | 401 | `AUTH_014` |
+| 사용자 없음 | 404 | `USER_001` |
+| 정지 계정 | 403 | `AUTH_009` (정지 상세 포함) |
+
+### 계정 연결 규칙
+
+- `LOGIN_PROVIDER` + `PROVIDER_USER_KEY` 가 일치하면 기존 계정으로 로그인한다.
+- 일치하는 계정이 없고 **이메일이 이미 쓰이고 있으면 차단**하고 가입 수단을 안내한다
+  (`AUTH_003` + `data.provider`). 계정 자동 통합이나 별도 계정 생성은 하지 않는다.
+- 소셜 가입 계정은 `PASSWORD_HASH` 가 없어 이메일 로그인이 불가능하다.
+  제공자가 인증을 마친 이메일이므로 `EMAIL_VERIFIED_YN` 은 `Y` 로 넣는다.
+
+### ⚠ 카카오 이메일 — 미해결
+
+`US_USER.EMAIL` 이 NOT NULL 이라 **이메일 없이는 가입할 수 없다.** 그런데 카카오는
+이메일을 필수 동의로 받으려면 **비즈 앱 전환과 검수**가 필요하다. 개인 개발자 앱이거나
+사용자가 동의하지 않으면 이메일이 오지 않는다.
+
+현재 구현은 이 경우 `AUTH_013` 으로 **실패시킨다.** 가짜 이메일을 만들어 넣지 않는다.
+어느 쪽으로 갈지는 아직 미정이다.
+
+| 안 | 내용 |
+| --- | --- |
+| A | 비즈 앱 전환 + 검수로 이메일 필수 동의 확보 |
+| B | 소셜 가입 후 이메일 입력 단계 추가 (S1 화면 추가) |
+| C | 임시 이메일 생성 (`kakao_{id}@...`) — 나중에 부채가 된다 |
+| D | `EMAIL` 을 nullable 로 변경 — 로그인·중복검사 전반 재검토 필요 |
+
+네이버와 구글은 이메일이 무난히 나오므로 **카카오만 이 이슈가 있다.**
+
+### 콘솔 등록
+
+3사 개발자 콘솔에 등록할 Redirect URI 는 다음과 같다.
+
+```
+http://localhost:8080/api/v1/auth/social/kakao/callback
+http://localhost:8080/api/v1/auth/social/naver/callback
+http://localhost:8080/api/v1/auth/social/google/callback
+```
+
+발급받은 값은 `.env` 에 넣는다(`.env.example` 참고). **자격 증명이 비어 있는 제공자는
+비활성으로 처리되어 요청 시 `AUTH_010` 을 반환한다.** 기동은 막지 않으므로
+콘솔 등록이 끝난 것부터 하나씩 채우면 된다.
 
 ---
 

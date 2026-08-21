@@ -210,7 +210,7 @@ public class AuthService {
      * @param user 대상 사용자
      * @return 토큰 응답
      */
-    private TokenResponse issueTokens(User user) {
+    TokenResponse issueTokens(User user) {
         String accessToken = tokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getUserRole());
         String refreshToken = tokenProvider.createRefreshToken(user.getId(), user.getEmail(), user.getUserRole());
 
@@ -257,7 +257,7 @@ public class AuthService {
      * @param user 정지 상태인 사용자
      * @return 정지 상세
      */
-    private SuspendedAccountDetail describeSuspension(User user) {
+    SuspendedAccountDetail describeSuspension(User user) {
         Optional<UserSanction> sanction = sanctionRepository
                 .findByUserIdAndActiveYnAndDeletedOrderByStartDateDesc(user.getId(), YesNo.Y, YesNo.N)
                 .stream()
@@ -316,7 +316,7 @@ public class AuthService {
      * @param value 원문
      * @return 소문자 16진 해시
      */
-    private String sha256Hex(String value) {
+    String sha256Hex(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));

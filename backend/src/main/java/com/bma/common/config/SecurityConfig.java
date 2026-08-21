@@ -42,6 +42,9 @@ public class SecurityConfig {
             "/api/v1/auth/signup",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
+            // 소셜 로그인. authorize 는 브라우저 이동, callback 은 3사가 호출하므로
+            // JWT 를 가질 수 없다. exchange 는 티켓 자체가 자격 증명이다.
+            "/api/v1/auth/social/**",
             // 외부 PG가 호출하므로 JWT를 가질 수 없다. 서명 검증으로 보호한다.
             "/api/v1/payments/webhook",
             // STOMP 핸드셰이크. 실제 인증은 CONNECT 프레임에서 수행한다.

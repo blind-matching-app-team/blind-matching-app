@@ -60,7 +60,18 @@ public final class TestProperties {
                                 "test_sk_dummy"
                         )
                 ),
-                new AppProperties.Matching(50, 30)
+                new AppProperties.Matching(50, 30),
+                // 소셜 로그인은 단위 테스트 대상이 아니므로 자격 증명을 비워 둔다.
+                // 비어 있는 제공자는 호출 시점에 거부되므로 실수로 외부 요청이 나가지 않는다.
+                new AppProperties.Oauth(
+                        "http://localhost:8080/api/v1/auth/social",
+                        "http://localhost:5173/oauth/result",
+                        "http://localhost:5173/oauth/result",
+                        120,
+                        new AppProperties.Oauth.Provider("", "", ""),
+                        new AppProperties.Oauth.Provider("", "", ""),
+                        new AppProperties.Oauth.Provider("", "", "")
+                )
         );
     }
 }
