@@ -91,7 +91,7 @@ public class SocialAuthService {
             throw new BusinessException(ErrorCode.SOCIAL_STATE_MISMATCH);
         }
 
-        SocialUserProfile profile = oauthClient.fetchProfile(provider, code);
+        SocialUserProfile profile = oauthClient.fetchProfile(provider, code, state);
         if (profile.providerKey() == null) {
             throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED);
         }

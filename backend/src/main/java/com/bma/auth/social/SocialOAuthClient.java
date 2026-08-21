@@ -65,11 +65,12 @@ public class SocialOAuthClient {
      *
      * @param provider 제공자
      * @param code     인가 코드
+     * @param state    인가 요청에 실었던 state. 네이버는 토큰 발급에도 이 값을 요구한다
      * @return 통일된 사용자 정보
      * @throws BusinessException 교환 또는 조회에 실패한 경우
      */
-    public SocialUserProfile fetchProfile(SocialProvider provider, String code) {
-        return fetchUserInfo(provider, exchangeToken(provider, code));
+    public SocialUserProfile fetchProfile(SocialProvider provider, String code, String state) {
+        return fetchUserInfo(provider, exchangeToken(provider, code, state));
     }
 
     /**
@@ -87,9 +88,10 @@ public class SocialOAuthClient {
      *
      * @param provider 제공자
      * @param code     인가 코드
+     * @param state    인가 요청에 실었던 state
      * @return 액세스 토큰
      */
-    private String exchangeToken(SocialProvider provider, String code) {
+    private String exchangeToken(SocialProvider provider, String code, String state) {
         AppProperties.Oauth.Provider credentials = requireConfigured(provider);
 
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
@@ -98,6 +100,10 @@ public class SocialOAuthClient {
         form.add("client_secret", credentials.clientSecret());
         form.add("redirect_uri", redirectUri(provider));
         form.add("code", code);
+        // 표준 OAuth 2.0 에는 없지만 네이버는 토큰 발급 요청에도 state 를 요구한다.
+        if (provider.tokenRequestRequiresState() && state != null) {
+            form.add("state", state);
+        }
 
         JsonNode response = postForm(provider, provider.tokenUri(), form);
         String accessToken = text(response, "access_token");
