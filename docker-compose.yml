@@ -99,6 +99,8 @@ services:
       # 결제. 라이브 키가 들어오면 TossApiKeyGuard 가 기동을 막는다.
       PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-stub}
       PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-}
+      TOSS_CLIENT_KEY: ${TOSS_CLIENT_KEY:-}
+      TOSS_SECRET_KEY: ${TOSS_SECRET_KEY:-}
 
     ports:
       - "${APP_PORT:-8080}:8080"
