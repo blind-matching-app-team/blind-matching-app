@@ -130,8 +130,11 @@ public record AppProperties(
          *
          * @param clientId     콘솔에서 발급한 클라이언트 ID(카카오는 REST API 키)
          * @param clientSecret 콘솔에서 발급한 시크릿. 서버 전용이며 저장소에 커밋하지 않는다
+         * @param scope        인가 요청에 실을 scope. 비어 있으면 제공자 기본값을 쓴다.
+         *                     콘솔에서 아직 권한을 못 받은 동의항목을 요청하면 거부되므로
+         *                     (카카오 KOE205) 승인 전까지 좁은 scope 로 낮춰 둘 때 쓴다
          */
-        public record Provider(String clientId, String clientSecret) {
+        public record Provider(String clientId, String clientSecret, String scope) {
 
             /**
              * 사용 가능한 자격 증명인지 확인한다.

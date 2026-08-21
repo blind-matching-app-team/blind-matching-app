@@ -53,11 +53,31 @@ public class SocialOAuthClient {
                 .queryParam("redirect_uri", redirectUri(provider))
                 .queryParam("state", state);
 
-        if (provider.scope() != null) {
-            builder.queryParam("scope", provider.scope());
+        String scope = resolveScope(provider, credentials);
+        if (scope != null) {
+            builder.queryParam("scope", scope);
         }
         // encode() 가 쿼리 값의 공백과 콜론을 알아서 처리한다. 직접 인코딩하면 이중 인코딩이 된다.
         return builder.encode().build().toUriString();
+    }
+
+    /**
+     * 인가 요청에 실을 scope 를 정한다.
+     *
+     * <p>설정값이 있으면 그것을 쓰고, 없으면 제공자 기본값을 쓴다. 콘솔에서 아직 권한을
+     * 받지 못한 동의항목을 요청하면 제공자가 거부하므로(카카오 KOE205), 승인 전까지
+     * 좁은 scope 로 낮춰 두고 승인 후 설정만 바꾸기 위한 장치다.</p>
+     *
+     * @param provider    제공자
+     * @param credentials 제공자 설정
+     * @return scope 문자열. 붙이지 않을 것이면 {@code null}
+     */
+    private String resolveScope(SocialProvider provider, AppProperties.Oauth.Provider credentials) {
+        String configured = credentials.scope();
+        if (configured != null && !configured.isBlank()) {
+            return configured.trim();
+        }
+        return provider.scope();
     }
 
     /**

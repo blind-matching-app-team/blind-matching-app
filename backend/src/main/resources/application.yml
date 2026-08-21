@@ -121,15 +121,20 @@ app:
     ticket-seconds: ${OAUTH_TICKET_SECONDS:120}
     # 자격 증명이 비어 있는 제공자는 비활성으로 간주하고 요청을 거부한다.
     # 콘솔 등록이 끝나지 않은 제공자 때문에 기동이 막히지 않게 하기 위함이다.
+    # scope 를 비워두면 제공자 기본값을 쓴다. 콘솔에서 아직 권한을 받지 못한
+    # 동의항목을 요청하면 거부되므로(카카오 KOE205), 승인 전까지 낮춰 둘 수 있다.
     kakao:
       client-id: ${OAUTH_KAKAO_CLIENT_ID:}
       client-secret: ${OAUTH_KAKAO_CLIENT_SECRET:}
+      scope: ${OAUTH_KAKAO_SCOPE:}
     naver:
       client-id: ${OAUTH_NAVER_CLIENT_ID:}
       client-secret: ${OAUTH_NAVER_CLIENT_SECRET:}
+      scope: ${OAUTH_NAVER_SCOPE:}
     google:
       client-id: ${OAUTH_GOOGLE_CLIENT_ID:}
       client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET:}
+      scope: ${OAUTH_GOOGLE_SCOPE:}
 
   matching:
     recommendation-max-size: 50
