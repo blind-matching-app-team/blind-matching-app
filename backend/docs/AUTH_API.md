@@ -409,7 +409,75 @@ http://localhost:8080/api/v1/auth/social/google/callback
 
 ---
 
-## 7. 결정 사항
+## 7. 검증하기
+
+### 서버 띄우기
+
+로컬에 JDK 21 을 설치할 필요가 없다. Dockerfile 이 멀티스테이지라 빌드도 컨테이너
+안(`eclipse-temurin:21-jdk`)에서 한다.
+
+```bash
+docker compose up -d --build
+docker compose logs -f app
+```
+
+로그에서 확인할 것:
+
+- `Successfully applied 3 migrations` — Flyway 정상
+- `Started BlindMatchingApiApplication` — `ddl-auto: validate` 통과 + 빈 배선 성공
+
+테이블 개수(32 여야 한다):
+
+```bash
+docker compose exec mysql mysql -ubma -pbma1234 bma   -e "SELECT COUNT(*) FROM information_schema.tables
+      WHERE table_schema='bma' AND table_name<>'flyway_schema_history';"
+```
+
+### 스모크 테스트
+
+```bash
+node backend/scripts/smoke-auth.js
+```
+
+의존성 설치가 필요 없다. 회원가입 → 로그인 → 재발급 → 로그아웃을 순서대로 치고
+아래를 검증한다. 매 실행마다 새 계정을 쓰므로 반복 실행해도 안전하다.
+
+| 단계 | 검증 내용 |
+| --- | --- |
+| 회원가입 | 200, `status=ACTIVE` |
+| 이메일 중복 | 409, `AUTH_003`, `data.errorCode=EMAIL_DUPLICATE`, `data.provider=LOCAL` |
+| 잘못된 비밀번호 | 401, `AUTH_001`, **`data` 키 없음** |
+| 로그인 | 토큰 발급, `profileCompleted=false` |
+| 재발급 | `refreshToken` 이 새 값으로 교체(로테이션) |
+| 이전 토큰 재사용 | 401, `AUTH_008` |
+| 로그아웃 | 200, `data` 키 없음 |
+| 인증 없이 로그아웃 | 401 |
+| 로그아웃한 토큰으로 재발급 | 401, `AUTH_008` |
+
+`BASE_URL` 로 대상 서버를 바꿀 수 있다(기본 `http://localhost:8080`).
+
+### 액세스 토큰 만료 시나리오
+
+만료 시간을 짧게 주고 띄운 뒤 기다렸다가 재발급을 확인한다.
+
+```bash
+JWT_ACCESS_SECONDS=5 docker compose up -d --build
+```
+
+### 소셜 로그인
+
+브라우저 이동이 필요해 스크립트로 검증하지 않는다. 콘솔 등록과 키 설정을 마친 뒤
+브라우저에서 `http://localhost:8080/api/v1/auth/social/kakao/authorize` 로 직접 접속해
+3사 인가 화면 → 콜백 → `?ticket=` 리다이렉트까지 확인한다.
+
+### qa 의 Playwright 는 지금 못 쓴다
+
+`qa/` 가 Playwright 1.62 를 쓰는데 Node 18 이상이 필요하다. 개발 PC 의 Node 가
+그보다 낮으면 위 스모크 스크립트를 쓴다(Node 14 에서도 동작한다).
+
+---
+
+## 8. 결정 사항
 
 ### 오류 분기는 `data.errorCode` 를 본다 (확정)
 
@@ -438,7 +506,7 @@ http://localhost:8080/api/v1/auth/social/google/callback
 
 ---
 
-## 8. 확정 필요
+## 9. 확정 필요
 
 - **카카오 이메일 대응** (6절 참고). 비즈 앱 전환 여부에 따라 갈린다.
 - 소셜 로그인 콘솔 등록 및 키 발급.
