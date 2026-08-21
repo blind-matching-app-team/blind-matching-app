@@ -35,6 +35,13 @@ spring:
       # Hibernate 는 엔티티와 실제 스키마가 어긋나면 기동을 막기만 한다.
       # (update 로 두면 Hibernate 가 스키마를 말없이 고쳐 마이그레이션 이력과 어긋난다.)
       ddl-auto: validate
+      naming:
+        # 스프링 부트 기본 전략(CamelCaseToUnderscoresNamingStrategy)은 @Table 에 명시한
+        # 이름까지 소문자로 바꾼다. 우리 스키마는 CH_CHAT_MESSAGE 처럼 대문자이고
+        # 리눅스 MySQL 은 lower_case_table_names=0 이라 테이블명 대소문자를 구분하므로,
+        # 그대로 두면 validate 가 "missing table [ch_chat_message]" 로 기동을 막는다.
+        # 표준 전략은 명시한 이름을 변형하지 않는다.
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     properties:
       hibernate:
         format_sql: true
