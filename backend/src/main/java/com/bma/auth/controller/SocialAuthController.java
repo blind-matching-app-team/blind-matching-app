@@ -1,5 +1,6 @@
 package com.bma.auth.controller;
 
+import com.bma.auth.dto.AuthDtos.DuplicateEmailDetail;
 import com.bma.auth.dto.AuthDtos.SocialExchangeRequest;
 import com.bma.auth.dto.AuthDtos.TokenResponse;
 import com.bma.auth.service.SocialAuthService;
@@ -105,7 +106,7 @@ public class SocialAuthController {
 
         if (error != null || code == null) {
             log.info("소셜 인가 취소 또는 오류: provider={}, error={}", provider, error);
-            return redirect(failureUrl("SOCIAL_AUTH_CANCELED"));
+            return redirect(failureUrl("SOCIAL_AUTH_CANCELED", null));
         }
 
         try {
@@ -114,7 +115,7 @@ public class SocialAuthController {
             return redirect(successUrl(ticket));
         } catch (BusinessException e) {
             log.warn("소셜 로그인 실패: provider={}, code={}", provider, e.getErrorCode().getCode());
-            return redirect(failureUrl(e.getErrorCode().getCode()));
+            return redirect(failureUrl(e.getErrorCode().getCode(), signupProviderOf(e)));
         }
     }
 
@@ -167,15 +168,35 @@ public class SocialAuthController {
     /**
      * 실패 시 이동할 프론트 주소를 만든다.
      *
-     * @param errorCode 오류 코드
+     * <p>이메일 중복은 "카카오로 가입된 이메일이에요"처럼 구체적으로 안내해야 하므로
+     * 기존 계정의 가입 수단을 함께 실어 보낸다. 콜백은 302 라서 JSON 본문을 줄 수 없다.</p>
+     *
+     * @param errorCode      오류 코드
+     * @param signupProvider 기존 계정의 가입 수단. 해당 없으면 {@code null}
      * @return 리다이렉트 URL
      */
-    private String failureUrl(String errorCode) {
-        return UriComponentsBuilder.fromUriString(properties.oauth().failureRedirect())
-                .queryParam("error", errorCode)
-                .encode()
-                .build()
-                .toUriString();
+    private String failureUrl(String errorCode, String signupProvider) {
+        UriComponentsBuilder builder = UriComponentsBuilder
+                .fromUriString(properties.oauth().failureRedirect())
+                .queryParam("error", errorCode);
+        if (signupProvider != null) {
+            builder.queryParam("provider", signupProvider);
+        }
+        return builder.encode().build().toUriString();
+    }
+
+    /**
+     * 이메일 중복 오류에서 기존 계정의 가입 수단을 꺼낸다.
+     *
+     * <p>정지 계정 상세({@code restrictionType}/{@code reason}/{@code restrictedUntil})는
+     * 사유 텍스트가 길어 쿼리 파라미터로 넘기기에 적절하지 않다. 그 경우 프론트는
+     * 이메일 로그인으로 유도해 완전한 응답을 받게 한다(AUTH_API.md 참고).</p>
+     *
+     * @param e 업무 예외
+     * @return 가입 수단. 이메일 중복이 아니면 {@code null}
+     */
+    private String signupProviderOf(BusinessException e) {
+        return e.getDetails() instanceof DuplicateEmailDetail detail ? detail.provider() : null;
     }
 
     /**
