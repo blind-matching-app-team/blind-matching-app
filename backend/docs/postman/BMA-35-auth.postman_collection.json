@@ -1,0 +1,533 @@
+{
+  "info": {
+    "name": "BMA-35 인증 API",
+    "description": "S1 인증 API 검증 컬렉션.\n\n회원가입 → 로그인 → 토큰 재발급 → 로그아웃을 순서대로 호출하고 실패 케이스까지 검증한다.\nRunner 로 위에서부터 순서대로 실행해야 한다(앞 요청이 만든 토큰을 뒤에서 쓴다).\n\n사전 조건: docker compose up -d --build\n\n소셜 로그인은 브라우저 이동이 필요해 이 컬렉션에 포함하지 않는다.\n인가 URL 생성(302)까지만 마지막 폴더에서 확인한다.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "postman1234",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "oldRefreshToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. 회원가입",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// 매 실행마다 새 계정을 쓴다. 같은 컬렉션을 반복 실행해도 깨지지 않게 한다.",
+              "pm.collectionVariables.set('email', 'postman-' + Date.now() + '@bma.test');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('success=true', () => pm.expect(b.success).to.be.true);",
+              "pm.test('userId 반환', () => pm.expect(b.data.userId).to.be.a('number'));",
+              "pm.test('status=ACTIVE (가입 직후 바로 로그인 가능)', () => pm.expect(b.data.status).to.eql('ACTIVE'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/signup",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "signup"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. 회원가입 - 이메일 중복 (AUTH_003)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "const b = pm.response.json();",
+              "pm.test('code=AUTH_003', () => pm.expect(b.code).to.eql('AUTH_003'));",
+              "// 정합성 v1.6: 프론트가 화면을 분기할 때 보는 값",
+              "pm.test('data.errorCode=EMAIL_DUPLICATE', () => pm.expect(b.data.errorCode).to.eql('EMAIL_DUPLICATE'));",
+              "pm.test('data.provider=LOCAL (가입 수단 안내)', () => pm.expect(b.data.provider).to.eql('LOCAL'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/signup",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "signup"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. 로그인 - 비밀번호 불일치 (AUTH_001)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "const b = pm.response.json();",
+              "pm.test('code=AUTH_001', () => pm.expect(b.code).to.eql('AUTH_001'));",
+              "// 전역 non_null 설정 때문에 상세가 없는 오류에는 data 키 자체가 없다.",
+              "// 프론트는 data === null 이 아니라 undefined 로 받는다.",
+              "pm.test('data 키 없음', () => pm.expect(b).to.not.have.property('data'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"wrong-password-1234\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. 로그인",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const t = pm.response.json().data;",
+              "pm.test('accessToken 발급', () => pm.expect(t.accessToken).to.be.a('string').and.not.empty);",
+              "pm.test('refreshToken 발급', () => pm.expect(t.refreshToken).to.be.a('string').and.not.empty);",
+              "pm.test('expiresIn 반환', () => pm.expect(t.expiresIn).to.be.a('number'));",
+              "// 프론트가 이 값으로 신규 유저 -> S2 / 기존 유저 -> 메인 허브 라우팅을 판단한다.",
+              "pm.test('profileCompleted=false (신규 유저)', () => pm.expect(t.profileCompleted).to.be.false);",
+              "",
+              "pm.collectionVariables.set('accessToken', t.accessToken);",
+              "pm.collectionVariables.set('refreshToken', t.refreshToken);",
+              "pm.collectionVariables.set('oldRefreshToken', t.refreshToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. 토큰 재발급",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const t = pm.response.json().data;",
+              "pm.test('새 accessToken 발급', () => pm.expect(t.accessToken).to.be.a('string').and.not.empty);",
+              "// 리프레시 토큰은 사용 즉시 회수되고 새 값으로 교체된다(로테이션).",
+              "// 클라이언트는 반드시 응답의 refreshToken 으로 갱신해 저장해야 한다.",
+              "pm.test('refreshToken 이 새 값으로 교체됨', () => {",
+              "    pm.expect(t.refreshToken).to.not.eql(pm.collectionVariables.get('oldRefreshToken'));",
+              "});",
+              "",
+              "pm.collectionVariables.set('accessToken', t.accessToken);",
+              "pm.collectionVariables.set('refreshToken', t.refreshToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/refresh",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "refresh"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. 재발급 - 회수된 토큰 재사용 (AUTH_008)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "const b = pm.response.json();",
+              "// 탈취 의심으로 간주해 해당 사용자의 모든 리프레시 토큰을 폐기한다.",
+              "pm.test('code=AUTH_008 (재사용 탐지)', () => pm.expect(b.code).to.eql('AUTH_008'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{oldRefreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/refresh",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "refresh"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. 재로그인 (재사용 탐지로 전 세션이 폐기됨)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const t = pm.response.json().data;",
+              "pm.collectionVariables.set('accessToken', t.accessToken);",
+              "pm.collectionVariables.set('refreshToken', t.refreshToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. 로그아웃 - 인증 없이 (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// 리프레시 토큰 문자열만 알면 타인의 세션을 끊을 수 있어 인증 경로로 옮겼다.",
+              "pm.test('HTTP 401 (로그아웃은 인증 필요)', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "logout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. 로그아웃",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('success=true', () => pm.expect(b.success).to.be.true);",
+              "// 본문이 없는 성공 응답에는 data 키가 통째로 빠진다.",
+              "pm.test('data 키 없음', () => pm.expect(b).to.not.have.property('data'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "logout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. 로그아웃한 토큰으로 재발급 (AUTH_008)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('code=AUTH_008', () => pm.expect(pm.response.json().code).to.eql('AUTH_008'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/refresh",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "refresh"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. 소셜 인가 URL 생성 (카카오)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// 이 요청은 3사 인가 화면으로의 302 를 확인하는 것까지만 한다.",
+              "// 실제 로그인은 브라우저에서 진행해야 하므로 컬렉션으로 검증할 수 없다.",
+              "// protocolProfileBehavior.followRedirects=false 로 302 를 그대로 받는다.",
+              "pm.test('HTTP 302', () => pm.response.to.have.status(302));",
+              "const location = pm.response.headers.get('Location') || '';",
+              "pm.test('카카오 인가 URL 로 보낸다', () => pm.expect(location).to.include('kauth.kakao.com'));",
+              "pm.test('CSRF 방지용 state 포함', () => pm.expect(location).to.include('state='));",
+              "pm.test('콜백 주소 포함', () => pm.expect(location).to.include('/auth/social/kakao/callback'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/social/kakao/authorize",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "social",
+            "kakao",
+            "authorize"
+          ]
+        }
+      },
+      "protocolProfileBehavior": {
+        "followRedirects": false
+      }
+    }
+  ]
+}
