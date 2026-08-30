@@ -27,7 +27,8 @@ class SuspendedAccountDetailTest {
     void setUp() {
         // application.yml 의 전역 설정(non_null)을 그대로 재현한다.
         objectMapper = new ObjectMapper();
-        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        // setSerializationInclusion 은 deprecated 라 대체 API 를 쓴다.
+        objectMapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
     }
 
     @Test

@@ -58,7 +58,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().cors(),
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
-                TestProperties.defaults().matching());
+                TestProperties.defaults().matching(),
+                TestProperties.defaults().oauth());
         JwtTokenProvider otherProvider = new JwtTokenProvider(otherProperties, new MockEnvironment());
 
         String foreignToken = otherProvider.createAccessToken(1L, "user@example.com", "USER");
@@ -75,7 +76,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().cors(),
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
-                TestProperties.defaults().matching());
+                TestProperties.defaults().matching(),
+                TestProperties.defaults().oauth());
 
         assertThatThrownBy(() -> new JwtTokenProvider(shortSecret, new MockEnvironment()))
                 .isInstanceOf(IllegalStateException.class)
@@ -92,7 +94,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().cors(),
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
-                TestProperties.defaults().matching());
+                TestProperties.defaults().matching(),
+                TestProperties.defaults().oauth());
 
         MockEnvironment prodEnvironment = new MockEnvironment();
         prodEnvironment.setActiveProfiles("prod");
@@ -112,7 +115,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().cors(),
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
-                TestProperties.defaults().matching());
+                TestProperties.defaults().matching(),
+                TestProperties.defaults().oauth());
 
         MockEnvironment localEnvironment = new MockEnvironment();
         localEnvironment.setActiveProfiles("local");
