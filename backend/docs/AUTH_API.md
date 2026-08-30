@@ -470,6 +470,26 @@ node backend/scripts/smoke-auth.js
 
 `BASE_URL` 로 대상 서버를 바꿀 수 있다(기본 `http://localhost:8080`).
 
+### Postman 컬렉션
+
+`backend/docs/postman/BMA-35-auth.postman_collection.json` 을 Postman 에서 Import 한 뒤
+**Runner 로 위에서부터 순서대로** 실행한다. 앞 요청이 만든 토큰을 뒤 요청이 쓰므로 순서가 중요하다.
+
+요청 11개, 검증 32건이다. 스모크 스크립트와 같은 것을 검증하되 실행 결과를 내보낼 수 있어
+AC 증빙으로 쓴다. 매 실행마다 새 계정을 만들므로 반복 실행해도 깨지지 않는다.
+
+설치 없이 돌리려면 newman 컨테이너를 쓴다.
+
+```bash
+docker run --rm -v "$(pwd)/backend/docs/postman:/etc/newman" postman/newman:alpine   run BMA-35-auth.postman_collection.json   --env-var "baseUrl=http://host.docker.internal:8080"
+```
+
+리포트 파일이 필요하면 뒤에 `--reporters cli,json --reporter-json-export newman-report.json` 을 붙인다.
+생성된 리포트는 실행마다 바뀌므로 커밋하지 않는다(`.gitignore` 등록됨).
+
+> 컬렉션 안의 `baseUrl` 기본값은 `http://localhost:8080` 이다. 위 컨테이너 실행에서만
+> 컨테이너 밖 호스트를 가리키도록 `host.docker.internal` 로 덮어쓴다.
+
 ### 액세스 토큰 만료 시나리오
 
 만료 시간을 짧게 주고 띄운 뒤 기다렸다가 재발급을 확인한다.
