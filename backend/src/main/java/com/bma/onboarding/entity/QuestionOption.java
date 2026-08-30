@@ -33,6 +33,14 @@ public class QuestionOption extends BaseAuditEntity {
     @Column(name = "QUESTION_ID", nullable = false)
     private Long questionId;
 
+    /**
+     * 상위 보기 ID. 세부 관심사가 대분류 보기를 가리킨다. 일반 보기는 {@code null}.
+     *
+     * <p>예: "문화생활"(대분류) 아래 "영화", "전시/미술관", "독서"(세부).</p>
+     */
+    @Column(name = "PARENT_OPTION_ID")
+    private Long parentOptionId;
+
     /** 보기 코드. 질문 내에서 유일하다. */
     @Column(name = "OPTION_CODE", nullable = false)
     private String optionCode;
@@ -48,4 +56,13 @@ public class QuestionOption extends BaseAuditEntity {
     /** 노출 정렬 순서. */
     @Column(name = "SORT_ORDER", nullable = false)
     private Integer sortOrder = 0;
+
+    /**
+     * 대분류(최상위) 보기인지 확인한다.
+     *
+     * @return 부모가 없으면 {@code true}
+     */
+    public boolean isTopLevel() {
+        return parentOptionId == null;
+    }
 }

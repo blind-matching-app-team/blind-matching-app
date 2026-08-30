@@ -66,6 +66,16 @@ public class Question extends BaseAuditEntity {
     @Column(name = "SORT_ORDER", nullable = false)
     private Integer sortOrder = 0;
 
+    /**
+     * 진행률 표시용 구간 번호(1부터). {@code 0} 은 미배정.
+     *
+     * <p>화면의 "N/7" 은 문항 수가 아니라 구간 수 기준이다. 여러 문항이 한 구간에
+     * 묶일 수 있어 정렬 순서와 별개로 관리한다. 프론트가 구간을 하드코딩하면
+     * 문항이 바뀔 때마다 화면을 고쳐야 하므로 데이터로 내려준다.</p>
+     */
+    @Column(name = "STEP_NO", nullable = false)
+    private Integer stepNo = 0;
+
     /** 사용 여부. */
     @Column(name = "USE_YN", nullable = false, columnDefinition = "CHAR(1)")
     private String useYn = YesNo.Y;
