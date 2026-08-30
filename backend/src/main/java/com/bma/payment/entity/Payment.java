@@ -69,8 +69,8 @@ public class Payment extends BaseAuditEntity {
     @Column(name = "AMOUNT", nullable = false)
     private BigDecimal amount;
 
-    /** 통화 코드. */
-    @Column(name = "CURRENCY_CODE", nullable = false, length = 3)
+    /** 통화 코드. 스키마가 CHAR(3) 이므로 타입을 명시해야 validate 를 통과한다. */
+    @Column(name = "CURRENCY_CODE", nullable = false, length = 3, columnDefinition = "CHAR(3)")
     private String currencyCode = "KRW";
 
     /** 승인 일시. */

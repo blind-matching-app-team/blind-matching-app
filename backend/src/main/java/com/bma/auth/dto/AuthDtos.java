@@ -1,5 +1,6 @@
 package com.bma.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -71,6 +72,19 @@ public final class AuthDtos {
     }
 
     /**
+     * 소셜 로그인 티켓 교환 요청.
+     *
+     * <p>콜백이 프론트 주소로 302 하면서 넘긴 일회용 티켓을 그대로 담는다.</p>
+     *
+     * @param ticket 일회용 티켓
+     */
+    public record SocialExchangeRequest(
+            @NotBlank(message = "티켓은 필수입니다.")
+            String ticket
+    ) {
+    }
+
+    /**
      * 토큰 발급 응답.
      *
      * @param accessToken      액세스 토큰
@@ -93,5 +107,87 @@ public final class AuthDtos {
      * @param status 계정 상태
      */
     public record SignupResponse(Long userId, String status) {
+    }
+
+    /**
+     * 정지 계정 로그인 실패 상세. 실패 응답의 {@code data} 에 실린다.
+     *
+     * <p>프론트가 이용정지 화면(S1-18~21)을 띄우는 데 필요한 정보다.</p>
+     *
+     * <p>{@code @JsonInclude(ALWAYS)} 를 붙인 이유: application.yml 의
+     * {@code default-property-inclusion: non_null} 이 전역으로 켜져 있어
+     * 그대로 두면 영구 정지일 때 {@code restrictedUntil} 필드가 통째로 사라진다.
+     * 명세상 이 필드는 값이 {@code null} 이더라도 <b>항상 존재해야</b> 하므로
+     * 이 DTO 에서만 전역 설정을 덮어쓴다.</p>
+     *
+     * @param errorCode       고정값 {@code ACCOUNT_SUSPENDED}. 봉투의 코드 체계와 별개로
+     *                        명세가 요구하는 이름을 그대로 내려준다
+     * @param restrictionType {@code TEMPORARY} 또는 {@code PERMANENT}
+     * @param reason          정지 사유. 사용자에게 그대로 노출된다
+     * @param restrictedUntil 정지 해제 일시(UTC ISO-8601). 영구 정지이면 {@code null}
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record SuspendedAccountDetail(String errorCode,
+                                         String restrictionType,
+                                         String reason,
+                                         String restrictedUntil) {
+
+        /** 정지 계정 오류를 나타내는 고정 코드. */
+        public static final String ERROR_CODE = "ACCOUNT_SUSPENDED";
+
+        /** 기간제 정지. */
+        public static final String TEMPORARY = "TEMPORARY";
+
+        /** 영구 정지. */
+        public static final String PERMANENT = "PERMANENT";
+
+        /**
+         * 기간제 정지 상세를 만든다.
+         *
+         * @param reason          정지 사유
+         * @param restrictedUntil 해제 일시(UTC ISO-8601 문자열)
+         * @return 상세
+         */
+        public static SuspendedAccountDetail temporary(String reason, String restrictedUntil) {
+            return new SuspendedAccountDetail(ERROR_CODE, TEMPORARY, reason, restrictedUntil);
+        }
+
+        /**
+         * 영구 정지 상세를 만든다. {@code restrictedUntil} 은 항상 {@code null} 이다.
+         *
+         * @param reason 정지 사유
+         * @return 상세
+         */
+        public static SuspendedAccountDetail permanent(String reason) {
+            return new SuspendedAccountDetail(ERROR_CODE, PERMANENT, reason, null);
+        }
+    }
+
+    /**
+     * 이메일 중복 상세. 회원가입 실패 응답의 {@code data} 에 실린다.
+     *
+     * <p>소셜로 가입된 이메일로 일반 회원가입을 시도한 경우를 구분하기 위한 것이다.
+     * 계정 자동 통합이나 별도 계정 생성은 하지 않고 차단 + 안내로 처리하며,
+     * 프론트가 "카카오로 가입된 이메일이에요" 처럼 구체적으로 안내할 수 있게
+     * 가입 수단을 함께 내려준다.</p>
+     *
+     * @param errorCode 고정값 {@code EMAIL_DUPLICATE}
+     * @param provider  기존 계정의 가입 수단(LOCAL/KAKAO/NAVER/GOOGLE/APPLE)
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record DuplicateEmailDetail(String errorCode, String provider) {
+
+        /** 이메일 중복 오류를 나타내는 고정 코드. */
+        public static final String ERROR_CODE = "EMAIL_DUPLICATE";
+
+        /**
+         * 상세를 만든다.
+         *
+         * @param provider 기존 계정의 가입 수단
+         * @return 상세
+         */
+        public static DuplicateEmailDetail of(String provider) {
+            return new DuplicateEmailDetail(ERROR_CODE, provider);
+        }
     }
 }

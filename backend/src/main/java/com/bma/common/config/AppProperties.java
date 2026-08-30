@@ -18,6 +18,7 @@ import java.util.List;
  * @param websocket STOMP 핸드셰이크 허용 정책
  * @param payment   결제 게이트웨이 설정
  * @param matching  추천/매칭 관련 정책
+ * @param oauth     소셜 로그인 제공자 설정
  */
 @Validated
 @ConfigurationProperties(prefix = "app")
@@ -27,7 +28,8 @@ public record AppProperties(
         @NotNull Cors cors,
         @NotNull Websocket websocket,
         @NotNull Payment payment,
-        @NotNull Matching matching
+        @NotNull Matching matching,
+        @NotNull Oauth oauth
 ) {
 
     /**
@@ -93,6 +95,56 @@ public record AppProperties(
          * @param secretKey  시크릿 키. 서버 전용이며 절대 저장소에 커밋하지 않는다
          */
         public record Toss(String apiBaseUrl, String clientKey, String secretKey) {
+        }
+    }
+
+    /**
+     * 소셜 로그인 설정.
+     *
+     * <p>인가 요청과 콜백을 모두 서버가 처리한다(백엔드 콜백 방식). 프론트는 버튼에서
+     * {@code /api/v1/auth/social/{provider}/authorize} 로 이동시키기만 하면 된다.</p>
+     *
+     * @param redirectBaseUrl 3사 콘솔에 등록할 콜백 주소의 앞부분.
+     *                        실제 등록값은 {@code {redirectBaseUrl}/{provider}/callback} 이다
+     * @param successRedirect 로그인 성공 후 사용자를 되돌려 보낼 프론트 주소.
+     *                        일회용 티켓이 {@code ?ticket=} 로 붙는다
+     * @param failureRedirect 로그인 실패 시 되돌려 보낼 프론트 주소. {@code ?error=} 가 붙는다
+     * @param ticketSeconds   일회용 티켓 유효 기간(초). 짧을수록 안전하다
+     * @param kakao           카카오 자격 증명
+     * @param naver           네이버 자격 증명
+     * @param google          구글 자격 증명
+     */
+    public record Oauth(String redirectBaseUrl,
+                        String successRedirect,
+                        String failureRedirect,
+                        long ticketSeconds,
+                        Provider kakao,
+                        Provider naver,
+                        Provider google) {
+
+        /**
+         * 제공자별 자격 증명.
+         *
+         * <p>둘 다 비어 있으면 해당 제공자는 비활성으로 간주하고 요청을 거부한다.
+         * 콘솔 등록이 끝나지 않은 제공자 때문에 기동이 막히지 않게 하기 위함이다.</p>
+         *
+         * @param clientId     콘솔에서 발급한 클라이언트 ID(카카오는 REST API 키)
+         * @param clientSecret 콘솔에서 발급한 시크릿. 서버 전용이며 저장소에 커밋하지 않는다
+         * @param scope        인가 요청에 실을 scope. 비어 있으면 제공자 기본값을 쓴다.
+         *                     콘솔에서 아직 권한을 못 받은 동의항목을 요청하면 거부되므로
+         *                     (카카오 KOE205) 승인 전까지 좁은 scope 로 낮춰 둘 때 쓴다
+         */
+        public record Provider(String clientId, String clientSecret, String scope) {
+
+            /**
+             * 사용 가능한 자격 증명인지 확인한다.
+             *
+             * @return 클라이언트 ID 와 시크릿이 모두 채워져 있으면 {@code true}
+             */
+            public boolean isConfigured() {
+                return clientId != null && !clientId.isBlank()
+                        && clientSecret != null && !clientSecret.isBlank();
+            }
         }
     }
 

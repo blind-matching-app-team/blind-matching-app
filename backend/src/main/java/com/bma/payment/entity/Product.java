@@ -52,7 +52,7 @@ public class Product extends BaseAuditEntity {
     private BigDecimal price;
 
     /** 통화 코드. */
-    @Column(name = "CURRENCY_CODE", nullable = false, length = 3)
+    @Column(name = "CURRENCY_CODE", nullable = false, length = 3, columnDefinition = "CHAR(3)")
     private String currencyCode = "KRW";
 
     /** 혜택 구성(JSON 문자열). */

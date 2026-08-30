@@ -50,4 +50,20 @@ public record ApiResponse<T>(boolean success, String code, String message, T dat
     public static ApiResponse<Void> error(String code, String message) {
         return new ApiResponse<>(false, code, message, null, LocalDateTime.now());
     }
+
+    /**
+     * 상세 데이터를 담은 실패 응답을 만든다.
+     *
+     * <p>정지 계정 안내처럼 클라이언트가 화면을 분기하려면 코드와 메시지만으로는 부족한 경우가 있다.
+     * 그런 오류는 {@code data} 에 구조화된 정보를 함께 내려준다.</p>
+     *
+     * @param code    오류 코드
+     * @param message 오류 메시지
+     * @param data    오류 상세. 필요 없으면 {@link #error(String, String)} 를 쓴다
+     * @param <T>     상세 타입
+     * @return 실패 응답
+     */
+    public static <T> ApiResponse<T> error(String code, String message, T data) {
+        return new ApiResponse<>(false, code, message, data, LocalDateTime.now());
+    }
 }
