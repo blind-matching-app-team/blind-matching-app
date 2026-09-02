@@ -212,6 +212,20 @@ docker run --rm -v "$(pwd)/backend/docs/postman:/etc/newman" postman/newman:alpi
 검증 항목: 계층 구조, `stepNo` 배정, 내부 점수 비노출, 우선순위 저장,
 구간 기준 완료율, `onboardingCompleted` 반영, 인증 요구, 잘못된 질문/보기 거부.
 
+### 리눅스 Docker Engine 을 쓰는 경우
+
+`host.docker.internal` 은 Docker Desktop(윈도우/맥)이 만들어 주는 이름이라
+리눅스 Docker Engine 에는 없다. 둘 중 하나로 바꾼다.
+
+```bash
+# 방법 1: 호스트 네트워크를 그대로 쓴다(리눅스에서만 동작)
+docker run --rm --network host -v "$(pwd)/backend/docs/postman:/etc/newman" postman/newman:alpine run <컬렉션> --env-var "baseUrl=http://localhost:8080"
+
+# 방법 2: 이름을 직접 만들어 준다(명령 형태를 그대로 두고 싶을 때)
+docker run --rm --add-host=host.docker.internal:host-gateway -v "$(pwd)/backend/docs/postman:/etc/newman" postman/newman:alpine run <컬렉션> --env-var "baseUrl=http://host.docker.internal:8080"
+```
+
+
 ---
 
 ## 6. 확정 필요
