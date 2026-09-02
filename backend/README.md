@@ -63,10 +63,11 @@ blind-matching-app/
 
 ### 사전 준비
 
-Windows 로컬 실행에 필요한 프로그램은 다음 두 가지입니다.
+로컬 실행에 필요한 프로그램은 다음 두 가지입니다.
 
 - Git
-- Docker Desktop
+- Docker — `docker compose` 명령이 동작하면 됩니다.
+  Docker Desktop, WSL2 안의 Docker Engine, 리눅스 Docker Engine 모두 가능합니다.
 
 다음 프로그램은 별도로 설치하지 않아도 됩니다.
 
@@ -79,7 +80,14 @@ Windows 로컬 실행에 필요한 프로그램은 다음 두 가지입니다.
 Spring Boot 애플리케이션과 MySQL은 모두 Docker 컨테이너에서 실행됩니다.  
 Gradle Wrapper 또한 Docker 이미지 빌드 과정에서 사용됩니다.
 
-Docker Desktop을 실행한 뒤 화면 왼쪽 아래에 `Engine running`이 표시되는지 확인하세요.
+Docker 데몬이 떠 있는지 먼저 확인하세요.
+
+```bash
+docker info
+```
+
+Docker Desktop을 쓴다면 화면 왼쪽 아래에 `Engine running`이 표시되어야 합니다.
+WSL2 안의 Docker Engine을 쓴다면 `sudo systemctl status docker` 로 확인합니다.
 
 ### Windows PowerShell 또는 Git Bash
 
@@ -542,7 +550,12 @@ cd backend
 
 ### `docker: command not found`
 
-Docker Desktop이 설치되지 않았거나 Docker CLI 경로가 PATH에 등록되지 않은 상태입니다.
+Docker가 설치되지 않았거나 Docker CLI 경로가 PATH에 등록되지 않은 상태입니다.
+
+WSL2 안의 Docker Engine을 쓴다면 `docker` 명령을 WSL 셸 안에서 실행해야 합니다.
+윈도우 PowerShell이나 Git Bash에서는 보이지 않습니다.
+
+Docker Desktop을 쓰는 경우 다음 경로를 확인하세요.
 
 Windows 사용자 PATH에 다음 경로가 포함되어 있는지 확인하세요.
 
