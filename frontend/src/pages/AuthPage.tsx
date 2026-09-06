@@ -132,7 +132,9 @@ export default function AuthPage() {
     const normalizedEmail = email.toLowerCase();
 
     if (normalizedEmail.includes('temporary')) {
-      navigate('/suspended?type=TEMPORARY&reason=커뮤니티 가이드라인 위반&restrictedUntil=2026-09-15T00:00:00+09:00');
+      navigate(
+        '/suspended?type=TEMPORARY&reason=커뮤니티 가이드라인 위반&restrictedUntil=2026-09-15T00:00:00+09:00',
+      );
       setLoading(false);
       return;
     }
@@ -278,7 +280,9 @@ export default function AuthPage() {
                       type="button"
                       className="password-toggle"
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
-                      aria-label={showConfirmPassword ? '비밀번호 확인 숨기기' : '비밀번호 확인 표시'}
+                      aria-label={
+                        showConfirmPassword ? '비밀번호 확인 숨기기' : '비밀번호 확인 표시'
+                      }
                     >
                       {showConfirmPassword ? '숨김' : '표시'}
                     </button>
@@ -327,7 +331,13 @@ export default function AuthPage() {
           {termsError && <span className="field-message error terms-message">{termsError}</span>}
 
           <button type="submit" className="submit-button" disabled={loading}>
-            {loading ? <span className="spinner" aria-label="로딩 중" /> : mode === 'login' ? '로그인' : '회원가입'}
+            {loading ? (
+              <span className="spinner" aria-label="로딩 중" />
+            ) : mode === 'login' ? (
+              '로그인'
+            ) : (
+              '회원가입'
+            )}
           </button>
         </form>
 
@@ -338,13 +348,25 @@ export default function AuthPage() {
         </div>
 
         <div className="social-stack">
-          <button type="button" className="social-button kakao" onClick={() => handleSocialClick('카카오')}>
+          <button
+            type="button"
+            className="social-button kakao"
+            onClick={() => handleSocialClick('카카오')}
+          >
             카카오로 계속하기
           </button>
-          <button type="button" className="social-button naver" onClick={() => handleSocialClick('네이버')}>
+          <button
+            type="button"
+            className="social-button naver"
+            onClick={() => handleSocialClick('네이버')}
+          >
             네이버로 계속하기
           </button>
-          <button type="button" className="social-button google" onClick={() => handleSocialClick('구글')}>
+          <button
+            type="button"
+            className="social-button google"
+            onClick={() => handleSocialClick('구글')}
+          >
             구글로 계속하기
           </button>
         </div>
@@ -353,7 +375,11 @@ export default function AuthPage() {
 
         <div className="auth-footer">
           {mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
-          <button type="button" className="text-link" onClick={() => handleModeChange(mode === 'login' ? 'signup' : 'login')}>
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => handleModeChange(mode === 'login' ? 'signup' : 'login')}
+          >
             {mode === 'login' ? '회원가입' : '로그인'}
           </button>
         </div>
