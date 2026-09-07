@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "BMA-40 프로필 API (S3)",
+    "name": "BMA-41 프로필 API (S3)",
     "description": "S3 프로필 설정 API 검증 컬렉션.\n\n회원가입 → 로그인 → 지역 조회 → 프로필 저장 → 사진 등록/교체/삭제를\n순서대로 호출하고 실패 케이스까지 검증한다.\nRunner 로 위에서부터 순서대로 실행해야 한다(앞 요청이 만든 토큰과 닉네임을 뒤에서 쓴다).\n\n사전 조건\n- docker compose up -d --build\n- 같은 폴더의 sample-profile.png (업로드 요청이 참조한다)\n\n검증 항목: 지역 2단계 트리, 지역 코드 검증, 성별 없이도 프로필 완성,\n닉네임 10자 제한과 중복, 사진 1장 교체 동작, 인증 요구.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

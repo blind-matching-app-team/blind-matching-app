@@ -259,14 +259,14 @@ GET /api/v1/regions               (인증 필요)
 docker compose up -d --build
 ```
 
-Postman 컬렉션 `postman/BMA-40-profile.postman_collection.json` 을 Import 한 뒤
+Postman 컬렉션 `postman/BMA-41-profile.postman_collection.json` 을 Import 한 뒤
 **Runner 로 위에서부터 순서대로** 실행한다.
 
 설치 없이 돌리려면 newman 컨테이너를 쓴다.
 
 ```bash
 docker run --rm --network host -v "$(pwd)/backend/docs/postman:/etc/newman" \
-  postman/newman:alpine run BMA-40-profile.postman_collection.json \
+  postman/newman:alpine run BMA-41-profile.postman_collection.json \
   --env-var "baseUrl=http://localhost:8080"
 ```
 
