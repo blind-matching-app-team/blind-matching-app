@@ -485,6 +485,20 @@ docker run --rm -v "$(pwd)/backend/docs/postman:/etc/newman" postman/newman:alpi
 ```
 
 리포트 파일이 필요하면 뒤에 `--reporters cli,json --reporter-json-export newman-report.json` 을 붙인다.
+
+### 리눅스 Docker Engine 을 쓰는 경우
+
+`host.docker.internal` 은 Docker Desktop(윈도우/맥)이 만들어 주는 이름이라
+리눅스 Docker Engine 에는 없다. 둘 중 하나로 바꾼다.
+
+```bash
+# 방법 1: 호스트 네트워크를 그대로 쓴다(리눅스에서만 동작)
+docker run --rm --network host -v "$(pwd)/backend/docs/postman:/etc/newman" postman/newman:alpine run <컬렉션> --env-var "baseUrl=http://localhost:8080"
+
+# 방법 2: 이름을 직접 만들어 준다(명령 형태를 그대로 두고 싶을 때)
+docker run --rm --add-host=host.docker.internal:host-gateway -v "$(pwd)/backend/docs/postman:/etc/newman" postman/newman:alpine run <컬렉션> --env-var "baseUrl=http://host.docker.internal:8080"
+```
+
 생성된 리포트는 실행마다 바뀌므로 커밋하지 않는다(`.gitignore` 등록됨).
 
 > 컬렉션 안의 `baseUrl` 기본값은 `http://localhost:8080` 이다. 위 컨테이너 실행에서만

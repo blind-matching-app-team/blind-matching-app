@@ -19,9 +19,13 @@ blind-matching-app/
 ### 사전 준비
 
 - Git
-- Docker Desktop
+- Docker (아래 중 하나)
+  - Docker Desktop — 윈도우/맥에서 가장 간단합니다
+  - WSL2 안의 Docker Engine — 윈도우에서 더 가볍습니다
+  - 리눅스 Docker Engine
 
 Java, Gradle, MySQL은 별도로 설치하지 않아도 됩니다.
+`docker compose` 명령만 동작하면 어느 쪽이든 상관없습니다.
 
 ### Windows PowerShell
 
