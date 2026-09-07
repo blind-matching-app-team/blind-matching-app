@@ -4,6 +4,7 @@ import com.bma.common.entity.YesNo;
 import com.bma.common.exception.BusinessException;
 import com.bma.common.exception.ErrorCode;
 import com.bma.onboarding.dto.OnboardingDtos.AnswerItem;
+import com.bma.onboarding.dto.OnboardingDtos.OptionView;
 import com.bma.onboarding.dto.OnboardingDtos.AnswerRequest;
 import com.bma.onboarding.dto.OnboardingDtos.AnswerResult;
 import com.bma.onboarding.dto.OnboardingDtos.QuestionView;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,7 +74,31 @@ public class OnboardingService {
 
         return questions.stream()
                 .map(question -> QuestionView.of(question,
-                        optionsByQuestion.getOrDefault(question.getId(), List.of())))
+                        toOptionTree(optionsByQuestion.getOrDefault(question.getId(), List.of()))))
+                .toList();
+    }
+
+    /**
+     * 평면 보기 목록을 대분류 → 세부 2단계 구조로 조립한다.
+     *
+     * <p>관심사 문항은 대분류(문화생활, 여행 등) 아래 세부 항목을 갖는다
+     * (S2 사양서 v1.4 의 S2-10/S2-11). 계층이 없는 일반 문항은 모든 보기가
+     * 최상위라 기존과 같은 평면 목록이 된다.</p>
+     *
+     * @param options 한 질문의 전체 보기(정렬된 상태)
+     * @return 최상위 보기 목록. 각 항목의 {@code children} 에 세부 보기가 담긴다
+     */
+    private List<OptionView> toOptionTree(List<QuestionOption> options) {
+        Map<Long, List<QuestionOption>> childrenByParent = options.stream()
+                .filter(option -> !option.isTopLevel())
+                .collect(Collectors.groupingBy(QuestionOption::getParentOptionId));
+
+        return options.stream()
+                .filter(QuestionOption::isTopLevel)
+                .map(parent -> OptionView.of(parent,
+                        childrenByParent.getOrDefault(parent.getId(), List.of()).stream()
+                                .map(OptionView::from)
+                                .toList()))
                 .toList();
     }
 
@@ -109,17 +135,19 @@ public class OnboardingService {
         List<UserAnswer> toSave = new ArrayList<>();
         Set<String> submittedKeys = new HashSet<>();
 
-        for (AnswerItem item : request.answers()) {
+        for (AnswerItem item : deduplicate(request.answers())) {
             String key = answerKey(item.questionId(), item.optionId());
             submittedKeys.add(key);
 
             UserAnswer answer = existingByKey.get(key);
             if (answer == null) {
                 answer = UserAnswer.of(userId, item.questionId(), item.optionId(),
-                        item.answerText(), item.answerNumber());
+                        item.answerText(), item.answerNumber(), item.rank());
             } else {
                 answer.setAnswerText(item.answerText());
                 answer.setAnswerNumber(item.answerNumber());
+                // 우선순위를 다시 매길 수 있으므로 매번 갱신한다.
+                answer.setAnswerRank(item.rank());
                 // 이전에 지웠던 답변을 다시 선택한 경우 되살린다.
                 answer.restore();
             }
@@ -137,35 +165,89 @@ public class OnboardingService {
         answerRepository.saveAll(toSave);
 
         long answeredCount = answerRepository.countByUserIdAndDeleted(userId, YesNo.N);
-        boolean completed = isOnboardingCompleted(userId);
+        StepProgress progress = calculateProgress(userId);
 
-        log.info("온보딩 답변 저장: userId={}, 저장={}건, 누적={}건, 완료={}",
-                userId, toSave.size(), answeredCount, completed);
-        return new AnswerResult(toSave.size(), answeredCount, completed);
+        log.info("온보딩 답변 저장: userId={}, 저장={}건, 누적={}건, 진행={}/{} ({}%)",
+                userId, toSave.size(), answeredCount,
+                progress.completedSteps(), progress.totalSteps(), progress.rate());
+        return new AnswerResult(toSave.size(), answeredCount, progress.completed(),
+                progress.totalSteps(), progress.completedSteps(), progress.rate());
     }
 
     /**
      * 필수 질문에 모두 답했는지 확인한다.
      *
+     * <p>질문이 하나도 없으면 완료로 보지 않는다. 콘텐츠가 아직 입력되지 않은 상태를
+     * "온보딩 완료"로 판정하면 신규 사용자가 설문을 건너뛴 채 매칭에 들어간다.</p>
+     *
      * @param userId 사용자 ID
      * @return 필수 질문을 모두 채웠으면 {@code true}
      */
     public boolean isOnboardingCompleted(Long userId) {
-        Set<Long> requiredQuestionIds = questionRepository
+        return calculateProgress(userId).completed();
+    }
+
+    /**
+     * 구간 기준 진행 상황.
+     *
+     * @param totalSteps     전체 구간 수
+     * @param completedSteps 필수 문항을 모두 채운 구간 수
+     * @param completed      전체 완료 여부
+     */
+    public record StepProgress(int totalSteps, int completedSteps, boolean completed) {
+
+        /**
+         * 완료율을 백분율로 계산한다.
+         *
+         * @return 0~100. 구간이 없으면 0
+         */
+        public int rate() {
+            return totalSteps == 0 ? 0 : (int) Math.round(completedSteps * 100.0 / totalSteps);
+        }
+    }
+
+    /**
+     * 사용자의 온보딩 진행 상황을 구간 기준으로 계산한다.
+     *
+     * <p>화면의 "N/7" 은 문항 22개가 아니라 그룹 순번이다(S2 사양서 v1.4).
+     * 그래서 문항 수가 아니라 {@code STEP_NO} 로 묶어서 센다. 한 구간은 그 안의
+     * <b>필수 문항을 모두</b> 채워야 완료로 본다.</p>
+     *
+     * <p>구간이 배정되지 않은 문항({@code STEP_NO=0})만 있는 경우에는 문항 하나를
+     * 한 구간으로 취급한다. 콘텐츠 확정 전에도 진행률이 동작하도록 하기 위함이다.</p>
+     *
+     * @param userId 사용자 ID
+     * @return 진행 상황
+     */
+    public StepProgress calculateProgress(Long userId) {
+        List<Question> required = questionRepository
                 .findByUseYnAndDeletedOrderBySortOrderAsc(YesNo.Y, YesNo.N).stream()
                 .filter(Question::isRequired)
-                .map(Question::getId)
-                .collect(Collectors.toSet());
+                .toList();
 
-        if (requiredQuestionIds.isEmpty()) {
-            return true;
+        if (required.isEmpty()) {
+            // 질문 콘텐츠가 아직 없는 상태. 완료로 보면 설문을 건너뛰게 되므로 미완료로 둔다.
+            return new StepProgress(0, 0, false);
         }
 
         Set<Long> answeredQuestionIds = answerRepository.findByUserIdAndDeleted(userId, YesNo.N).stream()
                 .map(UserAnswer::getQuestionId)
                 .collect(Collectors.toSet());
 
-        return answeredQuestionIds.containsAll(requiredQuestionIds);
+        // STEP_NO 가 배정되지 않았으면 문항 ID 를 구간 키로 삼아 문항 단위로 센다.
+        Map<Object, List<Question>> byStep = required.stream()
+                .collect(Collectors.groupingBy(question ->
+                        question.getStepNo() != null && question.getStepNo() > 0
+                                ? "step:" + question.getStepNo()
+                                : "question:" + question.getId()));
+
+        int completedSteps = (int) byStep.values().stream()
+                .filter(group -> group.stream()
+                        .allMatch(question -> answeredQuestionIds.contains(question.getId())))
+                .count();
+
+        int totalSteps = byStep.size();
+        return new StepProgress(totalSteps, completedSteps, completedSteps == totalSteps);
     }
 
     /**
@@ -261,6 +343,30 @@ public class OnboardingService {
                         "단일 선택 질문에는 하나의 보기만 선택할 수 있습니다. questionId=" + questionId);
             }
         });
+    }
+
+    /**
+     * 같은 (질문, 보기) 조합이 여러 번 들어온 경우 마지막 것만 남긴다.
+     *
+     * <p>답변은 본질적으로 선택 집합이라 중복은 의미가 없다. 그대로 두면 같은 키로
+     * 두 행을 저장하려다 {@code UK_ON_USER_ANSWER} 유니크 제약에 걸려
+     * "이미 처리된 요청" 이라는 엉뚱한 오류가 나간다. 클라이언트가 같은 보기를
+     * 두 번 보낸 것뿐이므로 조용히 정리하는 편이 낫다.</p>
+     *
+     * <p>마지막 것을 남기는 이유: 우선순위를 다시 매긴 경우 뒤에 온 값이 최신이다.</p>
+     *
+     * @param answers 원본 답변 목록
+     * @return 중복이 제거된 목록. 입력 순서는 유지된다
+     */
+    private List<AnswerItem> deduplicate(List<AnswerItem> answers) {
+        Map<String, AnswerItem> byKey = new LinkedHashMap<>();
+        for (AnswerItem item : answers) {
+            byKey.put(answerKey(item.questionId(), item.optionId()), item);
+        }
+        if (byKey.size() != answers.size()) {
+            log.debug("중복된 답변 {}건을 정리했다.", answers.size() - byKey.size());
+        }
+        return List.copyOf(byKey.values());
     }
 
     /**

@@ -13,6 +13,7 @@ import com.bma.common.exception.BusinessException;
 import com.bma.common.exception.ErrorCode;
 import com.bma.common.security.JwtTokenProvider;
 import com.bma.common.security.TokenType;
+import com.bma.onboarding.service.OnboardingService;
 import com.bma.safety.entity.UserSanction;
 import com.bma.safety.repository.UserSanctionRepository;
 import com.bma.user.entity.User;
@@ -61,6 +62,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserTokenRepository tokenRepository;
     private final UserProfileRepository profileRepository;
+    private final OnboardingService onboardingService;
     private final UserSanctionRepository sanctionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
@@ -220,16 +222,21 @@ public class AuthService {
                 sha256Hex(refreshToken),
                 LocalDateTime.now().plusSeconds(tokenProvider.refreshTokenSeconds())));
 
+        // 화면 흐름은 S1(로그인) -> S2(온보딩) -> S3(프로필) -> 메인 허브다.
+        // 두 단계의 완료 여부가 서로 독립이라 boolean 하나로는 "온보딩은 했지만
+        // 프로필은 아직" 인 상태를 표현할 수 없다. 그래서 각각 내려준다.
         boolean profileCompleted = profileRepository.findById(user.getId())
                 .map(UserProfile::isComplete)
                 .orElse(false);
+        boolean onboardingCompleted = onboardingService.isOnboardingCompleted(user.getId());
 
         return new TokenResponse(
                 accessToken,
                 refreshToken,
                 tokenProvider.accessTokenSeconds(),
                 user.getId(),
-                profileCompleted);
+                profileCompleted,
+                onboardingCompleted);
     }
 
     /**

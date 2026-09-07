@@ -55,6 +55,15 @@ public class UserAnswer extends BaseAuditEntity {
     private BigDecimal answerNumber;
 
     /**
+     * 사용자가 매긴 우선순위(1이 가장 높음). 순서 개념이 없는 답변은 {@code null}.
+     *
+     * <p>관심사 대분류를 끌어서 정렬한 결과다. 매칭 스코어링에 쓰이므로
+     * 척도 답변({@link #answerNumber})과 섞지 않고 별도 컬럼으로 둔다.</p>
+     */
+    @Column(name = "ANSWER_RANK")
+    private Integer answerRank;
+
+    /**
      * 새 답변을 만든다.
      *
      * @param userId       응답자 ID
@@ -65,13 +74,14 @@ public class UserAnswer extends BaseAuditEntity {
      * @return 저장 대상 엔티티
      */
     public static UserAnswer of(Long userId, Long questionId, Long optionId,
-                                String answerText, BigDecimal answerNumber) {
+                                String answerText, BigDecimal answerNumber, Integer answerRank) {
         UserAnswer answer = new UserAnswer();
         answer.userId = userId;
         answer.questionId = questionId;
         answer.optionId = optionId;
         answer.answerText = answerText;
         answer.answerNumber = answerNumber;
+        answer.answerRank = answerRank;
         return answer;
     }
 }

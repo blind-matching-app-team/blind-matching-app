@@ -91,13 +91,15 @@ public final class AuthDtos {
      * @param refreshToken     리프레시 토큰(재발급 시 항상 새 값으로 교체된다)
      * @param expiresIn        액세스 토큰 유효 기간(초)
      * @param userId           사용자 ID
-     * @param profileCompleted 프로필 작성 완료 여부. 클라이언트가 온보딩 화면으로 보낼지 판단한다.
+     * @param profileCompleted    프로필(S3) 작성 완료 여부
+     * @param onboardingCompleted 온보딩 설문(S2) 완료 여부
      */
     public record TokenResponse(String accessToken,
                                 String refreshToken,
                                 long expiresIn,
                                 Long userId,
-                                boolean profileCompleted) {
+                                boolean profileCompleted,
+                                boolean onboardingCompleted) {
     }
 
     /**
