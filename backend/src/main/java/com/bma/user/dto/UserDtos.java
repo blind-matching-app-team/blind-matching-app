@@ -6,6 +6,7 @@ import com.bma.user.entity.ProfileImage;
 import com.bma.user.entity.User;
 import com.bma.user.entity.UserPreference;
 import com.bma.user.entity.UserProfile;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -194,6 +195,10 @@ public final class UserDtos {
      * @param profileStatus 프로필 상태
      * @param profileScore  완성도 점수
      */
+    // 전역 설정이 non_null 이라 값이 없는 필드는 응답에서 통째로 빠진다.
+    // 프론트가 이 응답을 폼에 그대로 바인딩하므로 모양이 흔들리면 안 된다.
+    // 미입력은 "키가 없음"이 아니라 "null" 로 명시한다.
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record ProfileResponse(Long userId,
                                   String nickname,
                                   LocalDate birthDate,
@@ -294,6 +299,7 @@ public final class UserDtos {
      * @param fileSize     크기(바이트)
      * @param reviewStatus 검수 상태
      */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record ProfileImageResponse(Long imageId,
                                        String objectKey,
                                        String originalName,
