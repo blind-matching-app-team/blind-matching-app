@@ -23,7 +23,7 @@ public final class TestProperties {
      * @return 테스트용 설정
      */
     public static AppProperties defaults() {
-        return withStorage(System.getProperty("java.io.tmpdir"), 10 * 1024 * 1024L, 6);
+        return withStorage(System.getProperty("java.io.tmpdir"), 10 * 1024 * 1024L);
     }
 
     /**
@@ -31,17 +31,15 @@ public final class TestProperties {
      *
      * @param storageRoot       저장 루트
      * @param maxFileSizeBytes 최대 파일 크기
-     * @param maxImages         사용자당 이미지 수
      * @return 테스트용 설정
      */
-    public static AppProperties withStorage(String storageRoot, long maxFileSizeBytes, int maxImages) {
+    public static AppProperties withStorage(String storageRoot, long maxFileSizeBytes) {
         return new AppProperties(
                 new AppProperties.Jwt(TEST_SECRET, 1800, 1_209_600),
                 new AppProperties.Storage(
                         storageRoot,
                         maxFileSizeBytes,
-                        List.of("image/jpeg", "image/png", "image/webp"),
-                        maxImages
+                        List.of("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif")
                 ),
                 new AppProperties.Cors(
                         List.of("http://localhost:3000"),

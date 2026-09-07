@@ -1,18 +1,18 @@
 package com.bma.user.service;
 
+import com.bma.common.entity.Region;
 import com.bma.common.entity.YesNo;
 import com.bma.common.exception.BusinessException;
 import com.bma.common.exception.ErrorCode;
+import com.bma.common.service.RegionService;
 import com.bma.storage.StorageService;
-import com.bma.user.dto.UserDtos.ImageOrder;
-import com.bma.user.dto.UserDtos.ImageOrderRequest;
 import com.bma.user.dto.UserDtos.MeResponse;
+import com.bma.user.dto.UserDtos.NicknameCheckResponse;
 import com.bma.user.dto.UserDtos.PreferenceRequest;
 import com.bma.user.dto.UserDtos.PreferenceResponse;
 import com.bma.user.dto.UserDtos.ProfileImageResponse;
 import com.bma.user.dto.UserDtos.ProfileRequest;
 import com.bma.user.dto.UserDtos.ProfileResponse;
-import com.bma.common.config.AppProperties;
 import com.bma.user.entity.ProfileImage;
 import com.bma.user.entity.User;
 import com.bma.user.entity.UserPreference;
@@ -27,10 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Optional;
+
 
 /**
  * 회원 프로필 / 선호 조건 / 프로필 이미지 관리.
@@ -39,8 +37,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>엔티티 대신 DTO를 반환해 비밀번호 해시 등 내부 필드 노출을 차단했다.</li>
  *   <li>닉네임 중복을 사전 확인해 유니크 제약 위반으로 인한 500을 없앴다.</li>
- *   <li>이미지 순서 변경 시 대표 이미지가 여러 개가 되지 않도록 한 건만 남긴다.</li>
- *   <li>사용자당 이미지 개수 한도를 적용했다.</li>
+ *   <li>프로필 사진은 1장만 갖는다. 다시 올리면 추가가 아니라 교체다.</li>
  *   <li>이미지 삭제 시 저장소 파일까지 함께 정리한다(기존에는 DB 플래그만 바꿔 파일이 계속 쌓였다).</li>
  * </ul>
  */
@@ -54,8 +51,8 @@ public class UserService {
     private final UserProfileRepository profileRepository;
     private final UserPreferenceRepository preferenceRepository;
     private final ProfileImageRepository imageRepository;
+    private final RegionService regionService;
     private final StorageService storageService;
-    private final AppProperties properties;
 
     /**
      * 내 계정 정보를 조회한다.
@@ -79,8 +76,28 @@ public class UserService {
      */
     public ProfileResponse getProfile(Long userId) {
         return profileRepository.findByIdAndDeleted(userId, YesNo.N)
-                .map(ProfileResponse::from)
+                .map(this::toProfileResponse)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
+    }
+
+    /**
+     * 닉네임을 쓸 수 있는지 확인한다.
+     *
+     * <p>저장 시점에도 같은 검사를 하지만(그 사이에 남이 선점할 수 있다), 화면에서
+     * 입력 도중 알려 주려면 별도 확인이 필요하다. 본인이 이미 쓰고 있는 닉네임은
+     * 사용 가능으로 본다.</p>
+     *
+     * @param userId   사용자 ID
+     * @param nickname 확인할 닉네임
+     * @return 사용 가능 여부
+     */
+    public NicknameCheckResponse checkNickname(Long userId, String nickname) {
+        String normalized = emptyToNull(nickname);
+        if (normalized == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "닉네임을 입력해 주세요.");
+        }
+        boolean taken = profileRepository.existsByNicknameAndIdNotAndDeleted(normalized, userId, YesNo.N);
+        return new NicknameCheckResponse(normalized, !taken);
     }
 
     /**
@@ -98,13 +115,19 @@ public class UserService {
             throw new BusinessException(ErrorCode.NICKNAME_DUPLICATED);
         }
 
+        // 지역은 검증 없이 저장하면 오타나 임의 값이 들어와 매칭 지역 필터가 조용히
+        // 어긋난다. 시/도만 고른 코드도 여기서 걸러진다(선택은 시/군/구까지).
+        Region sigungu = regionService.findSelectableSigungu(request.regionCode())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST,
+                        "지역 코드가 올바르지 않습니다: " + request.regionCode()));
+
         UserProfile profile = profileRepository.findById(userId)
                 .orElseGet(() -> UserProfile.emptyFor(userId));
 
         profile.setNickname(request.nickname());
         profile.setBirthDate(request.birthDate());
-        profile.setGenderCode(request.genderCode());
-        profile.setRegionCode(request.regionCode());
+        profile.setGenderCode(emptyToNull(request.genderCode()));
+        profile.setRegionCode(sigungu.getCode());
         profile.setMbtiCode(emptyToNull(request.mbtiCode()));
         profile.setOccupation(emptyToNull(request.occupation()));
         profile.setHeightCm(request.heightCm());
@@ -123,7 +146,19 @@ public class UserService {
 
         log.info("프로필 저장: userId={}, status={}, score={}",
                 userId, saved.getProfileStatus(), saved.getProfileScore());
-        return ProfileResponse.from(saved);
+        return ProfileResponse.of(saved, sigungu, regionService.findParent(sigungu).orElse(null));
+    }
+
+    /**
+     * 프로필 엔티티에 지역명을 붙여 응답으로 만든다.
+     *
+     * @param profile 프로필 엔티티
+     * @return 응답 DTO
+     */
+    private ProfileResponse toProfileResponse(UserProfile profile) {
+        Region sigungu = regionService.findSelectableSigungu(profile.getRegionCode()).orElse(null);
+        Region sido = sigungu == null ? null : regionService.findParent(sigungu).orElse(null);
+        return ProfileResponse.of(profile, sigungu, sido);
     }
 
     /**
@@ -174,36 +209,33 @@ public class UserService {
     }
 
     /**
-     * 내 프로필 이미지 목록을 조회한다.
+     * 내 프로필 이미지를 조회한다.
      *
      * @param userId 사용자 ID
-     * @return 표시 순서대로 정렬된 이미지 목록
+     * @return 등록된 이미지. 아직 올리지 않았으면 비어 있음
      */
-    public List<ProfileImageResponse> getImages(Long userId) {
-        return imageRepository.findByUserIdAndDeletedOrderByDisplayOrderAsc(userId, YesNo.N).stream()
-                .map(ProfileImageResponse::from)
-                .toList();
+    public Optional<ProfileImageResponse> getImage(Long userId) {
+        return currentImage(userId).map(ProfileImageResponse::from);
     }
 
     /**
-     * 프로필 이미지를 업로드한다.
+     * 프로필 이미지를 등록한다. 이미 있으면 교체한다.
+     *
+     * <p>사진은 1장뿐이라 "추가"가 아니라 "교체"다. 저장소에 새 파일을 먼저 올린
+     * 뒤에 기존 것을 지우므로, 업로드가 검증에서 실패하면 기존 사진이 그대로 남는다.</p>
      *
      * @param userId 사용자 ID
      * @param file   업로드 파일
      * @return 저장된 이미지 정보
-     * @throws BusinessException 보유 한도 초과 또는 파일 검증 실패
+     * @throws BusinessException 파일 검증 실패
      */
     @Transactional
-    public ProfileImageResponse uploadImage(Long userId, MultipartFile file) {
-        long count = imageRepository.countByUserIdAndDeleted(userId, YesNo.N);
-        int limit = properties.storage().maxImagesPerUser();
-        if (count >= limit) {
-            throw new BusinessException(ErrorCode.IMAGE_LIMIT_EXCEEDED,
-                    "이미지는 최대 " + limit + "장까지 등록할 수 있습니다.");
-        }
-
+    public ProfileImageResponse saveImage(Long userId, MultipartFile file) {
         // 파일 형식/크기/시그니처 검증은 저장소 구현이 담당한다.
         StorageService.StoredFile stored = storageService.upload(userId, file);
+
+        // 다중 업로드를 허용하던 시절에 쌓인 사진이 있을 수 있어 전부 정리한다.
+        removeAllImages(userId);
 
         ProfileImage image = new ProfileImage();
         image.setUserId(userId);
@@ -213,71 +245,52 @@ public class UserService {
         image.setContentType(stored.contentType());
         image.setFileSize(stored.size());
         image.setFileHash(stored.sha256());
-        image.setDisplayOrder((int) count + 1);
-        // 첫 번째 이미지는 자동으로 대표 이미지가 된다.
-        image.markPrimary(count == 0);
+        // 1장뿐이므로 순서와 대표 여부는 언제나 같은 값이다. 컬럼은 다중 이미지
+        // 전제로 남아 있어 채워 두기만 한다(구조 단순화는 BMA-14 확인 후).
+        image.setDisplayOrder(1);
+        image.markPrimary(true);
 
+        log.info("프로필 사진 등록: userId={}, size={}", userId, stored.size());
         return ProfileImageResponse.from(imageRepository.save(image));
     }
 
     /**
-     * 프로필 이미지를 삭제한다.
+     * 프로필 이미지를 삭제한다. 기본 아바타로 돌아간다.
      *
-     * @param userId  사용자 ID
-     * @param imageId 이미지 ID
-     * @throws BusinessException 본인 소유가 아니거나 존재하지 않는 경우
+     * @param userId 사용자 ID
+     * @throws BusinessException 등록된 사진이 없는 경우
      */
     @Transactional
-    public void deleteImage(Long userId, Long imageId) {
-        // 소유자 조건을 쿼리에 포함해 타인 이미지의 존재 여부조차 드러나지 않게 한다.
-        ProfileImage image = imageRepository.findByIdAndUserIdAndDeleted(imageId, userId, YesNo.N)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        image.markDeleted();
-        // DB 플래그만 바꾸면 저장소에 고아 파일이 계속 쌓이므로 실제 파일도 지운다.
-        storageService.delete(image.getOriginalObjectKey());
-
-        // 대표 이미지를 지웠다면 남은 이미지 중 첫 번째를 대표로 승격한다.
-        if (image.isPrimary()) {
-            imageRepository.findByUserIdAndDeletedOrderByDisplayOrderAsc(userId, YesNo.N).stream()
-                    .filter(remaining -> !remaining.getId().equals(imageId))
-                    .findFirst()
-                    .ifPresent(remaining -> remaining.markPrimary(true));
+    public void deleteImage(Long userId) {
+        if (currentImage(userId).isEmpty()) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "등록된 프로필 사진이 없습니다.");
         }
+        removeAllImages(userId);
+        log.info("프로필 사진 삭제: userId={}", userId);
     }
 
     /**
-     * 프로필 이미지 표시 순서와 대표 이미지를 일괄 변경한다.
+     * 현재 사진 한 건을 찾는다.
      *
-     * @param userId  사용자 ID
-     * @param request 변경 요청
-     * @throws BusinessException 본인 소유가 아닌 이미지가 포함된 경우
+     * @param userId 사용자 ID
+     * @return 사진. 없으면 비어 있음
      */
-    @Transactional
-    public void reorderImages(Long userId, ImageOrderRequest request) {
-        // 요청에 포함된 ID를 한 번에 조회해 N+1 쿼리를 피한다.
-        Map<Long, ProfileImage> ownedImages =
-                imageRepository.findByUserIdAndDeletedOrderByDisplayOrderAsc(userId, YesNo.N).stream()
-                        .collect(Collectors.toMap(ProfileImage::getId, Function.identity()));
+    private Optional<ProfileImage> currentImage(Long userId) {
+        return imageRepository.findByUserIdAndDeletedOrderByDisplayOrderAsc(userId, YesNo.N).stream()
+                .findFirst();
+    }
 
-        // 대표 이미지는 한 장뿐이어야 하므로, 요청에서 가장 먼저 지정된 것만 인정한다.
-        Long newPrimaryId = request.images().stream()
-                .filter(order -> Boolean.TRUE.equals(order.primary()))
-                .map(ImageOrder::imageId)
-                .findFirst()
-                .orElse(null);
-
-        for (ImageOrder order : request.images()) {
-            ProfileImage image = ownedImages.get(order.imageId());
-            if (image == null) {
-                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                        "본인의 이미지가 아니거나 존재하지 않습니다: imageId=" + order.imageId());
-            }
-            image.setDisplayOrder(order.displayOrder());
-        }
-
-        if (newPrimaryId != null) {
-            ownedImages.values().forEach(image -> image.markPrimary(image.getId().equals(newPrimaryId)));
+    /**
+     * 사용자의 사진을 DB와 저장소에서 모두 지운다.
+     *
+     * <p>DB 플래그만 바꾸면 저장소에 고아 파일이 계속 쌓이므로 실제 파일도 함께 지운다.</p>
+     *
+     * @param userId 사용자 ID
+     */
+    private void removeAllImages(Long userId) {
+        for (ProfileImage image : imageRepository.findByUserIdAndDeletedOrderByDisplayOrderAsc(userId, YesNo.N)) {
+            image.markDeleted();
+            storageService.delete(image.getOriginalObjectKey());
         }
     }
 

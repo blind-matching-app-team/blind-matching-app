@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,6 +17,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -40,7 +42,14 @@ public class LocalStorageService implements StorageService {
     private static final Map<String, String> EXTENSION_BY_CONTENT_TYPE = Map.of(
             "image/jpeg", ".jpg",
             "image/png", ".png",
-            "image/webp", ".webp");
+            "image/webp", ".webp",
+            // 사양서 S3-02 가 heic 를 요구한다. 아이폰 기본 촬영 포맷이다.
+            "image/heic", ".heic",
+            "image/heif", ".heif");
+
+    /** HEIC/HEIF 로 인정하는 ftyp 브랜드. */
+    private static final Set<String> HEIF_BRANDS =
+            Set.of("heic", "heix", "heim", "heis", "hevc", "hevx", "mif1", "msf1");
 
     /** 파일 시그니처(매직 바이트) 검사에 필요한 최소 바이트 수. */
     private static final int SIGNATURE_LENGTH = 12;
@@ -160,12 +169,29 @@ public class LocalStorageService implements StorageService {
             // WEBP: "RIFF" ....(4바이트 크기).... "WEBP"
             case "image/webp" -> bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
                     && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P';
+            // HEIC/HEIF: ISO base media 컨테이너다. 4~7 이 "ftyp", 8~11 이 브랜드다.
+            // 브랜드는 인코더마다 갈려(heic/heix/hevc/mif1/msf1) 하나로 못 박을 수 없다.
+            case "image/heic", "image/heif" -> isHeif(bytes);
             default -> false;
         };
 
         if (!matched) {
             throw new BusinessException(ErrorCode.INVALID_FILE, "파일 내용이 선언된 이미지 형식과 다릅니다.");
         }
+    }
+
+    /**
+     * HEIC/HEIF 컨테이너인지 확인한다.
+     *
+     * @param bytes 파일 앞부분
+     * @return ftyp 박스의 브랜드가 HEIF 계열이면 {@code true}
+     */
+    private boolean isHeif(byte[] bytes) {
+        if (bytes[4] != 'f' || bytes[5] != 't' || bytes[6] != 'y' || bytes[7] != 'p') {
+            return false;
+        }
+        String brand = new String(bytes, 8, 4, StandardCharsets.US_ASCII);
+        return HEIF_BRANDS.contains(brand);
     }
 
     /**

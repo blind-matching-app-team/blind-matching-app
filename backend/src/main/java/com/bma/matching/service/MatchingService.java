@@ -96,7 +96,7 @@ public class MatchingService {
         // 내 프로필이 완성되지 않았으면 추천을 받을 수 없다(일방적 열람 방지).
         UserProfile myProfile = profileRepository.findByIdAndDeleted(userId, YesNo.N)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_INCOMPLETE));
-        if (!myProfile.isComplete()) {
+        if (!myProfile.isMatchable()) {
             throw new BusinessException(ErrorCode.PROFILE_INCOMPLETE);
         }
 
@@ -246,7 +246,7 @@ public class MatchingService {
     public QueueResponse joinQueue(Long userId) {
         UserProfile profile = profileRepository.findByIdAndDeleted(userId, YesNo.N)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_INCOMPLETE));
-        if (!profile.isComplete()) {
+        if (!profile.isMatchable()) {
             throw new BusinessException(ErrorCode.PROFILE_INCOMPLETE);
         }
 

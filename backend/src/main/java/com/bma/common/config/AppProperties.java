@@ -48,12 +48,10 @@ public record AppProperties(
      * @param root                저장 루트 디렉터리. 이 경로 밖으로는 절대 파일을 쓰지 않는다.
      * @param maxFileSizeBytes    업로드 1건당 최대 바이트 수
      * @param allowedContentTypes 허용 MIME 타입 화이트리스트
-     * @param maxImagesPerUser    사용자당 보유 가능한 프로필 이미지 수
      */
     public record Storage(String root,
                           long maxFileSizeBytes,
-                          List<String> allowedContentTypes,
-                          int maxImagesPerUser) {
+                          List<String> allowedContentTypes) {
     }
 
     /**
