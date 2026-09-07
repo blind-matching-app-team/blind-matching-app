@@ -29,11 +29,11 @@ public class Region extends BaseAuditEntity {
 
     /** 지역 코드(PK). 내부 식별자이며 행정안전부 표준 코드가 아니다. */
     @Id
-    @Column(name = "REGION_CODE", length = 20)
+    @Column(name = "REGION_CODE", length = 30)
     private String code;
 
     /** 상위 지역 코드. 시/도 자신은 {@code null}이다. */
-    @Column(name = "PARENT_REGION_CODE", length = 20)
+    @Column(name = "PARENT_REGION_CODE", length = 30)
     private String parentCode;
 
     /** 지역명. */

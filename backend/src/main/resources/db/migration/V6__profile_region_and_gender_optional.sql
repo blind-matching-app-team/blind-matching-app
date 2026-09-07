@@ -20,8 +20,8 @@
 -- 데이터 소스가 확정되면 LEGAL_CODE 에 채운다. 티켓 기준으로 아직 미확정이다.
 -- ---------------------------------------------------------------------
 CREATE TABLE `CM_REGION` (
-    `REGION_CODE`        VARCHAR(20)      NOT NULL COMMENT '지역 코드(내부 식별자)',
-    `PARENT_REGION_CODE` VARCHAR(20)      NULL COMMENT '상위 지역 코드. 시/도 자신은 NULL',
+    `REGION_CODE`        VARCHAR(30)      NOT NULL COMMENT '지역 코드(내부 식별자)',
+    `PARENT_REGION_CODE` VARCHAR(30)      NULL COMMENT '상위 지역 코드. 시/도 자신은 NULL',
     `REGION_NAME`        VARCHAR(100)     NOT NULL COMMENT '지역명',
     `REGION_LEVEL`       TINYINT UNSIGNED NOT NULL COMMENT '1=시/도, 2=시/군/구',
     `LEGAL_CODE`         VARCHAR(10)      NULL COMMENT '행정안전부 표준 행정구역 코드. 데이터 소스 확정 후 채운다',
@@ -52,3 +52,16 @@ CREATE TABLE `CM_REGION` (
 -- ---------------------------------------------------------------------
 ALTER TABLE `US_USER_PROFILE`
     MODIFY COLUMN `GENDER_CODE` VARCHAR(20) NULL COMMENT '성별 코드. 매칭에 필요하나 수집 시점 미확정';
+
+-- ---------------------------------------------------------------------
+-- 지역 코드를 담는 컬럼들을 VARCHAR(30) 으로 넓힌다
+--
+-- 기존 VARCHAR(20) 은 시드 데이터를 담기에 모자란다
+-- (GYEONGNAM_CHANGNYEONG 가 21자). 코드를 줄여 맞출 수도 있지만,
+-- 행정구역 개편으로 이름이 길어지면 같은 문제가 다시 난다.
+-- ---------------------------------------------------------------------
+ALTER TABLE `US_USER_PROFILE`
+    MODIFY COLUMN `REGION_CODE` VARCHAR(30) NULL COMMENT '활동 지역 코드(CM_REGION 의 시/군/구)';
+
+ALTER TABLE `US_USER_PREFERENCE`
+    MODIFY COLUMN `PREFERRED_REGION_CODE` VARCHAR(30) NULL COMMENT '선호 지역(CM_REGION 의 시/군/구)';
