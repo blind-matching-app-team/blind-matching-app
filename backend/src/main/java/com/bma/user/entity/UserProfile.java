@@ -55,7 +55,7 @@ public class UserProfile extends BaseAuditEntity {
     private LocalDate birthDate;
 
     /** 성별 코드. */
-    @Column(name = "GENDER_CODE", nullable = false)
+    @Column(name = "GENDER_CODE")
     private String genderCode;
 
     /** MBTI. */
@@ -126,6 +126,20 @@ public class UserProfile extends BaseAuditEntity {
     }
 
     /**
+     * 매칭(S4)에 실제로 넣을 수 있는지 확인한다.
+     *
+     * <p>{@link #isComplete()}와 나눠 둔 이유는 두 조건이 다르기 때문이다.
+     * 프로필 완성은 "S3 화면을 다 채웠는가"이고, 매칭 가능은 거기에 더해
+     * 상대 성별 필터에 쓸 성별이 있는가까지 본다. 성별은 S3 화면에 입력란이
+     * 없어 지금은 다른 경로(S15 본인인증 등, 미확정)로만 채워질 수 있다.</p>
+     *
+     * @return 프로필이 완성이고 성별이 있으면 {@code true}
+     */
+    public boolean isMatchable() {
+        return isComplete() && genderCode != null && !genderCode.isBlank();
+    }
+
+    /**
      * 필수 항목 충족 여부에 따라 상태와 완성도 점수를 다시 계산한다.
      *
      * <p>기존 구현은 저장할 때마다 무조건 {@code COMPLETE} + 점수 100을 넣어
@@ -133,13 +147,21 @@ public class UserProfile extends BaseAuditEntity {
      * 그 점수가 추천 정렬에 반영되도록 한다.</p>
      */
     public void refreshCompleteness() {
-        // 필수 4개 항목이 모두 있어야 매칭 가능 상태가 된다.
+        // S3 프로필 설정 화면에서 실제로 받을 수 있는 필수 3개 항목이다.
+        // 성별은 S3 에도 S1 회원가입에도 입력란이 없어 완성 판정에서 뺐다.
+        // 넣어 두면 사용자가 화면을 다 채워도 INCOMPLETE 로 남아 프론트가
+        // S3 로 되돌리는 무한 루프에 빠진다. 매칭 진입 조건은 별도로 본다
+        // ({@link #isMatchable()}).
         boolean requiredFilled = nickname != null && !nickname.isBlank()
                 && birthDate != null
-                && genderCode != null && !genderCode.isBlank()
                 && regionCode != null && !regionCode.isBlank();
 
-        int score = requiredFilled ? 60 : 0;
+        // 필수 50 + 선택 5개 x 10 = 100. 성별이 선택 항목으로 넘어오면서
+        // 기존 배점(필수 60 + 선택 4개)으로는 합계가 110 이 되어 조정했다.
+        int score = requiredFilled ? 50 : 0;
+        if (genderCode != null && !genderCode.isBlank()) {
+            score += 10;
+        }
         if (mbtiCode != null && !mbtiCode.isBlank()) {
             score += 10;
         }

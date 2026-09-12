@@ -35,7 +35,7 @@ class LocalStorageServiceTest {
     @BeforeEach
     void setUp() {
         storageService = new LocalStorageService(
-                TestProperties.withStorage(tempRoot.toString(), 1024 * 1024L, 6));
+                TestProperties.withStorage(tempRoot.toString(), 1024 * 1024L));
     }
 
     @Test
@@ -103,7 +103,7 @@ class LocalStorageServiceTest {
     @DisplayName("최대 크기를 초과하면 거부된다")
     void upload_rejectsOversizedFile() {
         LocalStorageService smallLimitService = new LocalStorageService(
-                TestProperties.withStorage(tempRoot.toString(), 10L, 6));
+                TestProperties.withStorage(tempRoot.toString(), 10L));
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.png", "image/png", pngBytes());
 
@@ -125,10 +125,48 @@ class LocalStorageServiceTest {
      *
      * @return PNG 헤더로 시작하는 바이트
      */
+    @Test
+    @DisplayName("HEIC 업로드는 ftyp 브랜드로 통과한다")
+    void upload_acceptsHeic() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "photo.heic", "image/heic", heifBytes("heic"));
+
+        StorageService.StoredFile stored = storageService.upload(7L, file);
+
+        assertThat(stored.contentType()).isEqualTo("image/heic");
+        assertThat(stored.objectKey()).endsWith(".heic");
+    }
+
+    @Test
+    @DisplayName("ftyp 브랜드가 HEIF 계열이 아니면 HEIC 로 선언해도 거부된다")
+    void upload_rejectsNonHeifBrand() {
+        // mp42 는 같은 ISO base media 컨테이너지만 이미지가 아니다.
+        // 브랜드를 보지 않고 ftyp 만 확인하면 동영상이 프로필 사진으로 들어온다.
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "movie.heic", "image/heic", heifBytes("mp42"));
+
+        assertThatThrownBy(() -> storageService.upload(7L, file))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_FILE);
+    }
+
     private byte[] pngBytes() {
         byte[] bytes = new byte[32];
         byte[] signature = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
         System.arraycopy(signature, 0, bytes, 0, signature.length);
+        return bytes;
+    }
+
+    /**
+     * ISO base media 컨테이너 앞부분을 만든다. 4~7 이 "ftyp", 8~11 이 브랜드다.
+     *
+     * @param brand 4글자 브랜드
+     * @return 헤더 바이트
+     */
+    private byte[] heifBytes(String brand) {
+        byte[] bytes = new byte[32];
+        byte[] header = ("____ftyp" + brand).getBytes(StandardCharsets.US_ASCII);
+        System.arraycopy(header, 0, bytes, 0, header.length);
         return bytes;
     }
 }

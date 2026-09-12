@@ -1,15 +1,15 @@
 package com.bma.user.dto;
 
+import com.bma.common.entity.Region;
 import com.bma.common.entity.YesNo;
 import com.bma.user.entity.ProfileImage;
 import com.bma.user.entity.User;
 import com.bma.user.entity.UserPreference;
 import com.bma.user.entity.UserProfile;
-import jakarta.validation.Valid;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
@@ -46,17 +46,20 @@ public final class UserDtos {
      * @param introduction 자기소개(선택)
      */
     public record ProfileRequest(
+            // 사양서 S3-06: "본명 대신 쓸 별칭 (10자 이내)".
             @NotBlank(message = "닉네임은 필수입니다.")
-            @Size(min = 2, max = 20, message = "닉네임은 2자 이상 20자 이하여야 합니다.")
+            @Size(min = 2, max = 10, message = "닉네임은 2자 이상 10자 이하여야 합니다.")
             String nickname,
 
             @NotNull(message = "생년월일은 필수입니다.")
             @Past(message = "생년월일은 과거 날짜여야 합니다.")
             LocalDate birthDate,
 
-            @NotBlank(message = "성별 코드는 필수입니다.")
+            // S3 화면에 성별 입력란이 없어 선택으로 둔다. 매칭(S4)에는 필요하므로
+            // 컬럼과 필드는 남기되, 수집 시점은 별도 확정 사항이다.
             String genderCode,
 
+            // 시/군/구 코드만 받는다. 시/도는 CM_REGION 의 상위 관계로 따라온다.
             @NotBlank(message = "지역 코드는 필수입니다.")
             String regionCode,
 
@@ -117,33 +120,19 @@ public final class UserDtos {
     ) {
     }
 
-    /**
-     * 이미지 순서 변경 항목.
-     *
-     * @param imageId      이미지 ID
-     * @param displayOrder 표시 순서(1부터)
-     * @param primary      대표 이미지 여부
-     */
-    public record ImageOrder(
-            @NotNull(message = "이미지 ID는 필수입니다.") Long imageId,
-            @NotNull(message = "표시 순서는 필수입니다.")
-            @Min(value = 1, message = "표시 순서는 1 이상이어야 합니다.") Integer displayOrder,
-            Boolean primary
-    ) {
-    }
-
-    /**
-     * 이미지 순서 일괄 변경 요청.
-     *
-     * @param images 변경할 항목 목록
-     */
-    public record ImageOrderRequest(
-            @NotEmpty(message = "변경할 이미지 목록이 비어 있습니다.")
-            @Valid List<ImageOrder> images
-    ) {
-    }
+    // 이미지 순서 변경/대표 지정 요청 DTO는 제거했다. 프로필 사진이 1장으로
+    // 축소되면서 순서를 매길 대상도, 여러 장 중 대표를 고를 대상도 없다.
 
     // ── 응답 ────────────────────────────────────────────────────────────────
+
+    /**
+     * 닉네임 사용 가능 여부 응답.
+     *
+     * @param nickname  확인한 닉네임
+     * @param available 사용 가능하면 {@code true}
+     */
+    public record NicknameCheckResponse(String nickname, boolean available) {
+    }
 
     /**
      * 내 계정 정보 응답.
@@ -194,8 +183,11 @@ public final class UserDtos {
      * @param nickname      닉네임
      * @param birthDate     생년월일
      * @param age           만 나이
-     * @param genderCode    성별 코드
-     * @param regionCode    지역 코드
+     * @param genderCode     성별 코드
+     * @param regionCode     지역 코드(시/군/구)
+     * @param regionName     지역명(시/군/구)
+     * @param regionSidoCode 상위 시/도 코드
+     * @param regionSidoName 상위 시/도명
      * @param mbtiCode      MBTI
      * @param occupation    직업
      * @param heightCm      키
@@ -203,12 +195,19 @@ public final class UserDtos {
      * @param profileStatus 프로필 상태
      * @param profileScore  완성도 점수
      */
+    // 전역 설정이 non_null 이라 값이 없는 필드는 응답에서 통째로 빠진다.
+    // 프론트가 이 응답을 폼에 그대로 바인딩하므로 모양이 흔들리면 안 된다.
+    // 미입력은 "키가 없음"이 아니라 "null" 로 명시한다.
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record ProfileResponse(Long userId,
                                   String nickname,
                                   LocalDate birthDate,
                                   Integer age,
                                   String genderCode,
                                   String regionCode,
+                                  String regionName,
+                                  String regionSidoCode,
+                                  String regionSidoName,
                                   String mbtiCode,
                                   String occupation,
                                   Integer heightCm,
@@ -219,10 +218,15 @@ public final class UserDtos {
         /**
          * 엔티티를 응답 DTO로 변환한다.
          *
+         * <p>지역은 코드만으로는 화면에 "서울특별시 · 강남구"를 그릴 수 없어 이름을 함께
+         * 내려준다. 프론트가 지역 목록을 따로 받아 코드를 이름으로 되짚는 수고를 없앤다.</p>
+         *
          * @param profile 프로필 엔티티
+         * @param sigungu 시/군/구. 미설정이거나 코드가 어긋나면 {@code null}
+         * @param sido    상위 시/도. 없으면 {@code null}
          * @return 응답 DTO
          */
-        public static ProfileResponse from(UserProfile profile) {
+        public static ProfileResponse of(UserProfile profile, Region sigungu, Region sido) {
             return new ProfileResponse(
                     profile.getId(),
                     profile.getNickname(),
@@ -230,6 +234,9 @@ public final class UserDtos {
                     profile.age(),
                     profile.getGenderCode(),
                     profile.getRegionCode(),
+                    sigungu == null ? null : sigungu.getName(),
+                    sido == null ? null : sido.getCode(),
+                    sido == null ? null : sido.getName(),
                     profile.getMbtiCode(),
                     profile.getOccupation(),
                     profile.getHeightCm(),
@@ -290,21 +297,22 @@ public final class UserDtos {
      * @param originalName 원본 파일명
      * @param contentType  MIME 타입
      * @param fileSize     크기(바이트)
-     * @param displayOrder 표시 순서
-     * @param primary      대표 이미지 여부
      * @param reviewStatus 검수 상태
      */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record ProfileImageResponse(Long imageId,
                                        String objectKey,
                                        String originalName,
                                        String contentType,
                                        Long fileSize,
-                                       Integer displayOrder,
-                                       boolean primary,
                                        String reviewStatus) {
 
         /**
          * 엔티티를 응답 DTO로 변환한다.
+         *
+         * <p>{@code displayOrder}와 {@code primary}는 응답에서 뺐다. 사진이 1장뿐이라
+         * 항상 1번이자 대표라서 값이 정보를 담지 않는다. 컬럼 자체는 다중 이미지
+         * 전제로 만들어진 것이라 구조 단순화(BMA-14)와 함께 정리한다.</p>
          *
          * @param image 이미지 엔티티
          * @return 응답 DTO
@@ -316,8 +324,6 @@ public final class UserDtos {
                     image.getOriginalFileName(),
                     image.getContentType(),
                     image.getFileSize(),
-                    image.getDisplayOrder(),
-                    image.isPrimary(),
                     image.getReviewStatus());
         }
     }

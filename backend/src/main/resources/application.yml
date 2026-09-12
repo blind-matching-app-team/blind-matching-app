@@ -85,7 +85,11 @@ app:
       - image/jpeg
       - image/png
       - image/webp
-    max-images-per-user: ${STORAGE_MAX_IMAGES:6}
+      # 사양서 S3-02: jpg/png/heic. heic 는 아이폰 기본 촬영 포맷이다.
+      - image/heic
+      - image/heif
+    # 사용자당 이미지 수 제한은 없앴다. 프로필 사진이 1장으로 축소되면서
+    # 업로드가 "추가"가 아니라 "교체"가 되어 한도를 셀 대상이 없다.
 
   cors:
     # 자격 증명을 함께 보내므로 와일드카드(*)를 쓸 수 없다. 환경별로 명시한다.

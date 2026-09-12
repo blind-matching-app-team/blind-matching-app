@@ -1,14 +1,26 @@
-name: CI
+name: Backend CI
 
 on:
   pull_request:
     branches: [develop, main]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.yml'
+      - '.env.example'
+      - '.github/workflows/backend-ci.yml'
+
   push:
     branches: [develop, main]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.yml'
+      - '.env.example'
+      - '.github/workflows/backend-ci.yml'
+
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -19,6 +31,7 @@ jobs:
     name: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     defaults:
       run:
         working-directory: backend
@@ -71,17 +84,28 @@ jobs:
         shell: bash
         run: |
           set -e
-          test -f backend/Dockerfile || { echo "::error::backend/Dockerfile 파일이 없습니다."; exit 1; }
+
+          test -f backend/Dockerfile || {
+            echo "::error::backend/Dockerfile 파일이 없습니다."
+            exit 1
+          }
 
           migrations="backend/src/main/resources/db/migration"
+
           # 마이그레이션이 통째로 사라지면 앱은 빈 스키마에 붙어 기동 후에야 깨진다.
           # 여기서 먼저 막는다.
-          test -d "$migrations" || { echo "::error::$migrations 디렉터리가 없습니다."; exit 1; }
+          test -d "$migrations" || {
+            echo "::error::$migrations 디렉터리가 없습니다."
+            exit 1
+          }
+
           count=$(find "$migrations" -maxdepth 1 -name 'V*__*.sql' | wc -l)
+
           if [ "$count" -eq 0 ]; then
             echo "::error::$migrations 에 Flyway 마이그레이션이 없습니다."
             exit 1
           fi
+
           echo "마이그레이션 $count 개를 확인했습니다."
 
       - name: 백엔드 Docker 이미지 빌드 검증
