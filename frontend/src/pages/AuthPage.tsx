@@ -1,23 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { loginApi, signupApi } from '../api/auth';
 
 type AuthMode = 'login' | 'signup';
 
 type ProviderName = '카카오' | '네이버' | '구글';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const getDuplicateProviderMessage = (provider: ProviderName) => {
-  if (provider === '카카오') {
-    return '카카오로 가입된 이메일이에요. 카카오로 로그인해주세요';
-  }
-
-  if (provider === '네이버') {
-    return '네이버로 가입된 이메일이에요. 네이버로 로그인해주세요';
-  }
-
-  return '구글로 가입된 이메일이에요. 구글로 로그인해주세요';
-};
 
 export default function AuthPage() {
   const location = useLocation();
@@ -127,61 +116,109 @@ export default function AuthPage() {
 
     setLoading(true);
 
-    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+    try {
+      if (mode === 'login') {
+        const response = await loginApi(email, password);
 
-    const normalizedEmail = email.toLowerCase();
+        if (!response.success) {
+          const detail = response.data as {
+            restrictionType?: 'TEMPORARY' | 'PERMANENT';
+            reason?: string;
+            restrictedUntil?: string | null;
+          };
 
-    if (normalizedEmail.includes('temporary')) {
-      navigate(
-        '/suspended?type=TEMPORARY&reason=커뮤니티 가이드라인 위반&restrictedUntil=2026-09-15T00:00:00+09:00',
-      );
+          if (response.code === 'ACCOUNT_SUSPENDED') {
+            const params = new URLSearchParams({
+              type: detail.restrictionType ?? 'PERMANENT',
+              reason: detail.reason ?? '관리자 조치에 따라 계정 이용이 제한되었습니다.',
+            });
+
+            if (detail.restrictedUntil) {
+              params.set('restrictedUntil', detail.restrictedUntil);
+            }
+
+            navigate(`/suspended?${params.toString()}`);
+            return;
+          }
+
+          if (response.code === 'EMAIL_DUPLICATE') {
+            const provider =
+              typeof response.data === 'object' && response.data && 'provider' in response.data
+                ? String(response.data.provider)
+                : '';
+            const normalized = provider.toUpperCase();
+            const providerName =
+              normalized === 'KAKAO'
+                ? '카카오'
+                : normalized === 'NAVER'
+                  ? '네이버'
+                  : normalized === 'GOOGLE'
+                    ? '구글'
+                    : '소셜';
+            setBannerError(
+              `${providerName}로 가입된 이메일이에요. ${providerName}로 로그인해주세요`,
+            );
+            return;
+          }
+
+          setBannerError(response.message || '로그인에 실패했습니다.');
+          return;
+        }
+
+        const { userId } = response.data;
+        if (!userId) {
+          setBannerError('로그인 응답이 올바르지 않습니다.');
+          return;
+        }
+
+        navigate('/');
+        return;
+      }
+
+      const response = await signupApi(email, password);
+
+      if (!response.success) {
+        if (response.code === 'EMAIL_DUPLICATE') {
+          const provider =
+            typeof response.data === 'object' && response.data && 'provider' in response.data
+              ? String(response.data.provider)
+              : '';
+          const normalized = provider.toUpperCase();
+          const providerName =
+            normalized === 'KAKAO'
+              ? '카카오'
+              : normalized === 'NAVER'
+                ? '네이버'
+                : normalized === 'GOOGLE'
+                  ? '구글'
+                  : '소셜';
+          setBannerError(`${providerName}로 가입된 이메일이에요. ${providerName}로 로그인해주세요`);
+          return;
+        }
+
+        setBannerError(response.message || '회원가입에 실패했습니다.');
+        return;
+      }
+
+      navigate('/login');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '처리 중 오류가 발생했습니다.';
+      setBannerError(message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (normalizedEmail.includes('permanent')) {
-      navigate('/suspended?type=PERMANENT&reason=심각한 서비스 이용 규정 위반');
-      setLoading(false);
-      return;
-    }
-
-    if (normalizedEmail.includes('suspended')) {
-      navigate('/suspended?type=PERMANENT&reason=부적절한 활동으로 인한 계정 정지');
-      setLoading(false);
-      return;
-    }
-
-    if (normalizedEmail.includes('kakao')) {
-      setBannerError(getDuplicateProviderMessage('카카오'));
-      setLoading(false);
-      return;
-    }
-
-    if (normalizedEmail.includes('naver')) {
-      setBannerError(getDuplicateProviderMessage('네이버'));
-      setLoading(false);
-      return;
-    }
-
-    if (normalizedEmail.includes('google')) {
-      setBannerError(getDuplicateProviderMessage('구글'));
-      setLoading(false);
-      return;
-    }
-
-    if (normalizedEmail.includes('fail')) {
-      setBannerError('로그인에 실패했습니다. 다시 시도해주세요.');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
-    navigate('/');
   };
 
   const handleSocialClick = (provider: ProviderName) => {
     setToastMessage('로그인이 취소됐어요');
     console.log(`${provider} OAuth click`);
+  };
+
+  const handleDevBypassLogin = () => {
+    sessionStorage.setItem('bma_access_token', 'dev-test-access-token');
+    sessionStorage.setItem('bma_refresh_token', 'dev-test-refresh-token');
+    sessionStorage.setItem('bma_user_id', '1');
+    navigate('/', { replace: true });
   };
 
   const handleTermsClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -383,6 +420,12 @@ export default function AuthPage() {
             {mode === 'login' ? '회원가입' : '로그인'}
           </button>
         </div>
+
+        {import.meta.env.DEV && (
+          <button type="button" className="dev-login-button" onClick={handleDevBypassLogin}>
+            개발용 임시 로그인
+          </button>
+        )}
       </div>
     </div>
   );
