@@ -67,6 +67,23 @@ public class RegionService {
     }
 
     /**
+     * 매칭 선호조건(S4-04)에 저장할 수 있는 지역인지 확인한다.
+     *
+     * <p>프로필과 달리 시/도도 통과시킨다. 사양서 S4-04 가 "서울 전체"처럼
+     * 시/도 단위 전체 선택을 허용하기 때문이다.</p>
+     *
+     * @param code 지역 코드
+     * @return 사용 중인 시/도 또는 시/군/구면 해당 지역, 아니면 비어 있음
+     */
+    public Optional<Region> findSelectable(String code) {
+        if (code == null || code.isBlank()) {
+            return Optional.empty();
+        }
+        return regionRepository.findByCodeAndUseYnAndDeleted(code, YesNo.Y, YesNo.N)
+                .filter(region -> region.isSido() || region.isSigungu());
+    }
+
+    /**
      * 지역 코드로 상위 시/도를 찾는다.
      *
      * @param sigungu 시/군/구
@@ -77,5 +94,18 @@ public class RegionService {
             return Optional.empty();
         }
         return regionRepository.findByCodeAndUseYnAndDeleted(sigungu.getParentCode(), YesNo.Y, YesNo.N);
+    }
+
+    /**
+     * 지역이 속한 시/도를 찾는다. 시/도 자신이면 그대로 돌려준다.
+     *
+     * @param region 시/도 또는 시/군/구
+     * @return 시/도. 없으면 비어 있음
+     */
+    public Optional<Region> findSidoOf(Region region) {
+        if (region == null) {
+            return Optional.empty();
+        }
+        return region.isSido() ? Optional.of(region) : findParent(region);
     }
 }

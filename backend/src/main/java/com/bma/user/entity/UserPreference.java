@@ -44,20 +44,20 @@ public class UserPreference extends BaseAuditEntity {
     @Column(name = "MAX_AGE", columnDefinition = "SMALLINT UNSIGNED")
     private Integer maxAge;
 
-    /** 최소 희망 키(cm). */
-    @Column(name = "MIN_HEIGHT_CM", columnDefinition = "SMALLINT UNSIGNED")
-    private Integer minHeightCm;
-
-    /** 최대 희망 키(cm). */
-    @Column(name = "MAX_HEIGHT_CM", columnDefinition = "SMALLINT UNSIGNED")
-    private Integer maxHeightCm;
+    // 희망 키(MIN/MAX_HEIGHT_CM)는 V8 에서 지웠다. BMA-19 안건2: 키는 "외모보다 대화"
+    // 컨셉과 충돌하는 요소라 매칭 필터에서 영구 제외한다(기술 미확정이 아니라 의도된 설계).
 
     /** 최대 거리(km). 위치 기반 매칭 도입 전까지는 저장만 한다. */
     @Column(name = "MAX_DISTANCE_KM", nullable = false, columnDefinition = "INT UNSIGNED")
     private Integer maxDistanceKm = 50;
 
-    /** 선호 지역 코드. */
-    @Column(name = "PREFERRED_REGION_CODE")
+    /**
+     * 희망 지역 코드({@code CM_REGION}).
+     *
+     * <p>S4-04 는 드롭다운 하나로 시/군/구를 고르거나 "서울 전체"처럼 시/도를 고른다.
+     * 시/도 코드가 들어 있으면 그 하위 시/군/구 전체를 뜻한다.</p>
+     */
+    @Column(name = "PREFERRED_REGION_CODE", length = 30)
     private String preferredRegionCode;
 
     /** 추천/매칭 참여 여부. {@code 'N'}이면 추천 대상에서 제외된다. */
