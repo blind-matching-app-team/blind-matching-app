@@ -1,5 +1,6 @@
 package com.bma.matching.repository;
 
+import com.bma.common.entity.QRegion;
 import com.bma.common.entity.YesNo;
 import com.bma.user.entity.QUserPreference;
 import com.bma.user.entity.QUserProfile;
@@ -27,7 +28,7 @@ import java.util.List;
  * </pre>
  * <p>그 결과</p>
  * <ul>
- *   <li>선호 조건(성별/나이/키/지역)이 전혀 반영되지 않았다.</li>
+ *   <li>선호 조건(성별/나이/지역)이 전혀 반영되지 않았다.</li>
  *   <li>이미 좋아요/패스한 상대, 차단한 상대, 이미 매칭된 상대가 계속 다시 나왔다.</li>
  *   <li>매칭 참여를 끈 사용자도 추천됐다.</li>
  *   <li>{@code id desc} 고정이라 매번 같은 목록만 반환했다.</li>
@@ -39,6 +40,7 @@ public class MatchingQueryRepository {
 
     private static final QUserProfile PROFILE = QUserProfile.userProfile;
     private static final QUserPreference PREFERENCE = QUserPreference.userPreference;
+    private static final QRegion REGION = QRegion.region;
 
     private final JPAQueryFactory queryFactory;
 
@@ -119,17 +121,33 @@ public class MatchingQueryRepository {
                     today.minusYears(preference.getMaxAge() + 1L).plusDays(1)));
         }
 
-        if (preference.getMinHeightCm() != null) {
-            condition.and(heightAtLeast(preference.getMinHeightCm()));
-        }
-        if (preference.getMaxHeightCm() != null) {
-            condition.and(heightAtMost(preference.getMaxHeightCm()));
-        }
+        // 키 조건은 없다. BMA-19 안건2 에서 매칭 필터에서 영구 제외했다(V8 에서 컬럼 삭제).
 
         if (hasText(preference.getPreferredRegionCode())) {
-            // 지역 코드는 "SEOUL_GANGNAM" 형태의 계층 구조라 접두 일치로 하위 지역까지 포함한다.
-            condition.and(PROFILE.regionCode.startsWith(preference.getPreferredRegionCode()));
+            condition.and(inPreferredRegion(preference.getPreferredRegionCode()));
         }
+    }
+
+    /**
+     * 희망 지역 조건.
+     *
+     * <p>희망 지역은 시/군/구 하나이거나 "서울 전체"처럼 시/도 하나다(S4-04).
+     * 시/도면 그 하위 시/군/구에 사는 후보를 모두 포함해야 하므로 {@code CM_REGION} 의
+     * 상위 관계로 푼다. 코드 접두 일치({@code startsWith})는 쓰지 않는다 —
+     * {@code GWANGJU}(광주광역시)가 {@code GYEONGGI_GWANGJU}(경기 광주시)와 섞이는 식의
+     * 우연한 문자열 일치를 데이터 관계로 막기 위해서다.</p>
+     *
+     * @param regionCode 희망 지역 코드(시/도 또는 시/군/구)
+     * @return 후보의 활동 지역이 희망 지역 자체이거나 그 하위인 조건
+     */
+    private BooleanExpression inPreferredRegion(String regionCode) {
+        return PROFILE.regionCode.eq(regionCode)
+                .or(PROFILE.regionCode.in(JPAExpressions
+                        .select(REGION.code)
+                        .from(REGION)
+                        .where(REGION.parentCode.eq(regionCode),
+                                REGION.useYn.eq(YesNo.Y),
+                                REGION.deleted.eq(YesNo.N))));
     }
 
     /**
@@ -149,26 +167,6 @@ public class MatchingQueryRepository {
         // (score, id) < (cursorScore, cursorId) 를 표현한다.
         condition.and(PROFILE.profileScore.lt(cursorScore)
                 .or(PROFILE.profileScore.eq(cursorScore).and(PROFILE.id.lt(cursorUserId))));
-    }
-
-    /**
-     * 키 하한 조건. 키를 입력하지 않은 후보는 걸러내지 않는다.
-     *
-     * @param minHeight 최소 키
-     * @return 조건식
-     */
-    private BooleanExpression heightAtLeast(int minHeight) {
-        return PROFILE.heightCm.isNull().or(PROFILE.heightCm.goe(minHeight));
-    }
-
-    /**
-     * 키 상한 조건. 키를 입력하지 않은 후보는 걸러내지 않는다.
-     *
-     * @param maxHeight 최대 키
-     * @return 조건식
-     */
-    private BooleanExpression heightAtMost(int maxHeight) {
-        return PROFILE.heightCm.isNull().or(PROFILE.heightCm.loe(maxHeight));
     }
 
     /**

@@ -80,41 +80,38 @@ public final class UserDtos {
     }
 
     /**
-     * 선호 조건 등록/수정 요청.
+     * 선호 조건 등록/수정 요청 (S4).
      *
-     * @param preferredGenderCode 선호 성별
-     * @param minAge              최소 연령
-     * @param maxAge              최대 연령
-     * @param minHeightCm         최소 키
-     * @param maxHeightCm         최대 키
-     * @param maxDistanceKm       최대 거리(km)
-     * @param preferredRegionCode 선호 지역
-     * @param matchingEnabled     추천/매칭 참여 여부
+     * <p>키 조건은 받지 않는다. BMA-19 안건2 에서 "외모보다 대화" 컨셉과 충돌하는
+     * 요소로 판단해 필터에서 영구 제외했다(S4-05 안내 문구). 필드를 다시 넣지 말 것.</p>
+     *
+     * @param preferredRegionCode 희망 지역(S4-04). 시/군/구 코드 또는 "서울 전체"처럼 시/도 코드
+     * @param minAge              희망 최소 나이(S4-09). {@code null} 이면 제한 없음
+     * @param maxAge              희망 최대 나이(S4-09). {@code null} 이면 제한 없음
+     * @param preferredGenderCode 선호 성별(선택). S4 화면엔 없지만 매칭에 필요해 API 는 받는다
+     * @param maxDistanceKm       최대 거리(km, 선택). {@code null} 이면 기존 값 유지
+     * @param matchingEnabled     추천/매칭 참여 여부(선택). {@code null} 이면 기존 값 유지
      */
     public record PreferenceRequest(
-            String preferredGenderCode,
+            // S4 에서 유일한 필수 조건이다. 행안부 표준 코드(CM_REGION)만 통과한다.
+            @NotBlank(message = "희망 지역은 필수입니다.")
+            String preferredRegionCode,
 
-            @Min(value = 19, message = "최소 연령은 19세 이상이어야 합니다.")
-            @Max(value = 99, message = "최소 연령은 99세 이하여야 합니다.")
+            // S4-09 [결정 v1.5]: 19~99, 최소값 19 고정. 성인 전용 정책(BMA-19 안건3)이라
+            // 매칭 조건에서 미성년자 범위를 설정할 수 없게 원천 차단한다.
+            @Min(value = 19, message = "최소 나이는 19세 이상이어야 합니다.")
+            @Max(value = 99, message = "최소 나이는 99세 이하여야 합니다.")
             Integer minAge,
 
-            @Min(value = 19, message = "최대 연령은 19세 이상이어야 합니다.")
-            @Max(value = 99, message = "최대 연령은 99세 이하여야 합니다.")
+            @Min(value = 19, message = "최대 나이는 19세 이상이어야 합니다.")
+            @Max(value = 99, message = "최대 나이는 99세 이하여야 합니다.")
             Integer maxAge,
 
-            @Min(value = 100, message = "최소 키는 100cm 이상이어야 합니다.")
-            @Max(value = 250, message = "최소 키는 250cm 이하여야 합니다.")
-            Integer minHeightCm,
-
-            @Min(value = 100, message = "최대 키는 100cm 이상이어야 합니다.")
-            @Max(value = 250, message = "최대 키는 250cm 이하여야 합니다.")
-            Integer maxHeightCm,
+            String preferredGenderCode,
 
             @Min(value = 1, message = "최대 거리는 1km 이상이어야 합니다.")
             @Max(value = 500, message = "최대 거리는 500km 이하여야 합니다.")
             Integer maxDistanceKm,
-
-            String preferredRegionCode,
 
             Boolean matchingEnabled
     ) {
@@ -247,41 +244,62 @@ public final class UserDtos {
     }
 
     /**
-     * 선호 조건 응답.
+     * 선호 조건 응답 (S4).
      *
-     * @param preferredGenderCode 선호 성별
-     * @param minAge              최소 연령
-     * @param maxAge              최대 연령
-     * @param minHeightCm         최소 키
-     * @param maxHeightCm         최대 키
-     * @param maxDistanceKm       최대 거리
-     * @param preferredRegionCode 선호 지역
-     * @param matchingEnabled     매칭 참여 여부
+     * <p>지역은 코드만으로는 드롭다운을 되살릴 수 없어 이름과 시/도 정보를 함께 내려준다.
+     * 시/도 전체를 고른 경우 {@code preferredRegionScope=SIDO} 이고 {@code regionSido*} 는
+     * 자기 자신이다.</p>
+     *
+     * @param preferredRegionCode  희망 지역 코드. 미설정이면 {@code null}
+     * @param preferredRegionName  희망 지역명(예: 강남구, 서울특별시)
+     * @param preferredRegionScope {@code SIGUNGU}(시/군/구 하나) 또는 {@code SIDO}(시/도 전체). 미설정이면 {@code null}
+     * @param regionSidoCode       상위(또는 자기 자신) 시/도 코드
+     * @param regionSidoName       상위(또는 자기 자신) 시/도명
+     * @param minAge               희망 최소 나이. {@code null} 이면 제한 없음
+     * @param maxAge               희망 최대 나이. {@code null} 이면 제한 없음
+     * @param preferredGenderCode  선호 성별. {@code null} 이면 가리지 않음
+     * @param maxDistanceKm        최대 거리
+     * @param matchingEnabled      매칭 참여 여부
      */
-    public record PreferenceResponse(String preferredGenderCode,
+    // 프로필 응답과 같은 이유로 null 도 키를 남긴다(프론트가 폼에 그대로 바인딩한다).
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record PreferenceResponse(String preferredRegionCode,
+                                     String preferredRegionName,
+                                     String preferredRegionScope,
+                                     String regionSidoCode,
+                                     String regionSidoName,
                                      Integer minAge,
                                      Integer maxAge,
-                                     Integer minHeightCm,
-                                     Integer maxHeightCm,
+                                     String preferredGenderCode,
                                      Integer maxDistanceKm,
-                                     String preferredRegionCode,
                                      boolean matchingEnabled) {
 
+        /** 시/군/구 하나를 고른 경우. */
+        public static final String SCOPE_SIGUNGU = "SIGUNGU";
+
+        /** 시/도 전체를 고른 경우("서울 전체"). */
+        public static final String SCOPE_SIDO = "SIDO";
+
         /**
-         * 엔티티를 응답 DTO로 변환한다.
+         * 엔티티에 지역 정보를 붙여 응답 DTO로 변환한다.
          *
          * @param preference 선호 조건 엔티티
+         * @param region     희망 지역(시/도 또는 시/군/구). 미설정이거나 코드가 어긋나면 {@code null}
+         * @param sido       {@code region} 의 시/도. {@code region} 이 시/도면 자기 자신
          * @return 응답 DTO
          */
-        public static PreferenceResponse from(UserPreference preference) {
+        public static PreferenceResponse of(UserPreference preference, Region region, Region sido) {
+            String scope = region == null ? null : (region.isSido() ? SCOPE_SIDO : SCOPE_SIGUNGU);
             return new PreferenceResponse(
-                    preference.getPreferredGenderCode(),
+                    preference.getPreferredRegionCode(),
+                    region == null ? null : region.getName(),
+                    scope,
+                    sido == null ? null : sido.getCode(),
+                    sido == null ? null : sido.getName(),
                     preference.getMinAge(),
                     preference.getMaxAge(),
-                    preference.getMinHeightCm(),
-                    preference.getMaxHeightCm(),
+                    preference.getPreferredGenderCode(),
                     preference.getMaxDistanceKm(),
-                    preference.getPreferredRegionCode(),
                     preference.isMatchingEnabled());
         }
     }

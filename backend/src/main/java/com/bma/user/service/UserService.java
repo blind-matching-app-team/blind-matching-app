@@ -169,33 +169,39 @@ public class UserService {
      */
     public PreferenceResponse getPreference(Long userId) {
         return preferenceRepository.findByIdAndDeleted(userId, YesNo.N)
-                .map(PreferenceResponse::from)
-                .orElseGet(() -> PreferenceResponse.from(UserPreference.defaultsFor(userId)));
+                .map(this::toPreferenceResponse)
+                .orElseGet(() -> toPreferenceResponse(UserPreference.defaultsFor(userId)));
     }
 
     /**
-     * 선호 조건을 등록하거나 수정한다.
+     * 선호 조건을 등록하거나 수정한다 (S4 매칭 시작하기).
+     *
+     * <p>키 조건은 받지 않는다(BMA-19 안건2). 나이 하한 19 는 DTO 검증이 막고,
+     * 여기서는 최소·최대 순서와 지역 코드 유효성을 본다.</p>
      *
      * @param userId  사용자 ID
      * @param request 선호 조건 요청
      * @return 저장된 선호 조건
-     * @throws BusinessException 최소값이 최대값보다 큰 경우
+     * @throws BusinessException 최소 나이가 최대 나이보다 크거나 지역 코드가 올바르지 않은 경우
      */
     @Transactional
     public PreferenceResponse savePreference(Long userId, PreferenceRequest request) {
-        // DB의 CK_US_PREF_AGE / CK_US_PREF_HEIGHT 체크 제약을 애플리케이션에서 먼저 검증한다.
-        validateRange(request.minAge(), request.maxAge(), "최소 연령은 최대 연령보다 클 수 없습니다.");
-        validateRange(request.minHeightCm(), request.maxHeightCm(), "최소 키는 최대 키보다 클 수 없습니다.");
+        // DB의 CK_US_PREF_AGE 체크 제약을 애플리케이션에서 먼저 검증한다.
+        validateRange(request.minAge(), request.maxAge(), "최소 나이는 최대 나이보다 클 수 없습니다.");
+
+        // S4-04: 시/군/구 하나 또는 "서울 전체"(시/도). 프로필과 달리 시/도도 허용한다.
+        // 검증 없이 저장하면 오타나 임의 값이 들어와 매칭 지역 필터가 조용히 어긋난다.
+        Region region = regionService.findSelectable(request.preferredRegionCode())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST,
+                        "희망 지역 코드가 올바르지 않습니다: " + request.preferredRegionCode()));
 
         UserPreference preference = preferenceRepository.findById(userId)
                 .orElseGet(() -> UserPreference.defaultsFor(userId));
 
-        preference.setPreferredGenderCode(emptyToNull(request.preferredGenderCode()));
+        preference.setPreferredRegionCode(region.getCode());
         preference.setMinAge(request.minAge());
         preference.setMaxAge(request.maxAge());
-        preference.setMinHeightCm(request.minHeightCm());
-        preference.setMaxHeightCm(request.maxHeightCm());
-        preference.setPreferredRegionCode(emptyToNull(request.preferredRegionCode()));
+        preference.setPreferredGenderCode(emptyToNull(request.preferredGenderCode()));
         // null이면 기존 값을 유지한다(부분 수정 허용).
         if (request.maxDistanceKm() != null) {
             preference.setMaxDistanceKm(request.maxDistanceKm());
@@ -205,7 +211,23 @@ public class UserService {
         }
         preference.restore();
 
-        return PreferenceResponse.from(preferenceRepository.save(preference));
+        UserPreference saved = preferenceRepository.save(preference);
+        log.info("선호 조건 저장: userId={}, region={}({}), age={}~{}",
+                userId, region.getCode(), region.isSido() ? "시/도 전체" : "시/군/구",
+                saved.getMinAge(), saved.getMaxAge());
+        return PreferenceResponse.of(saved, region, regionService.findSidoOf(region).orElse(null));
+    }
+
+    /**
+     * 선호 조건 엔티티에 지역명을 붙여 응답으로 만든다.
+     *
+     * @param preference 선호 조건 엔티티
+     * @return 응답 DTO
+     */
+    private PreferenceResponse toPreferenceResponse(UserPreference preference) {
+        Region region = regionService.findSelectable(preference.getPreferredRegionCode()).orElse(null);
+        Region sido = region == null ? null : regionService.findSidoOf(region).orElse(null);
+        return PreferenceResponse.of(preference, region, sido);
     }
 
     /**
