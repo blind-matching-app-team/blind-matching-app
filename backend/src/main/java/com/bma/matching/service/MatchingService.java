@@ -21,7 +21,7 @@ import com.bma.matching.repository.MatchQueueRepository;
 import com.bma.matching.repository.MatchRepository;
 import com.bma.matching.repository.MatchingQueryRepository;
 import com.bma.matching.repository.UserActionRepository;
-import com.bma.notification.entity.Notification;
+import com.bma.notification.entity.NotificationEvent;
 import com.bma.notification.service.NotificationService;
 import com.bma.onboarding.entity.Question;
 import com.bma.onboarding.entity.QuestionOption;
@@ -182,7 +182,7 @@ public class MatchingService {
 
         if (!mutual) {
             // 아직 한쪽만 호감을 표시한 상태. 상대에게 알림만 보낸다.
-            notificationService.notify(targetUserId, Notification.TYPE_MATCH,
+            notificationService.notify(targetUserId, NotificationEvent.MATCH_LIKED,
                     "누군가 회원님에게 호감을 보냈어요",
                     "받은 호감을 확인해 보세요.", "USER", userId);
             return new ActionResult(targetUserId, request.actionType(), false, null, null);
@@ -194,7 +194,7 @@ public class MatchingService {
         closeQueueEntries(userId, targetUserId);
 
         notificationService.notifyAll(List.of(userId, targetUserId),
-                Notification.TYPE_MATCH,
+                NotificationEvent.MATCH_CREATED,
                 "매칭이 성사되었어요!",
                 "이제 대화를 시작할 수 있습니다. 대화를 나눌수록 상대의 프로필이 더 공개됩니다.",
                 "MATCH", match.getId());
@@ -402,8 +402,9 @@ public class MatchingService {
         match.terminate(Match.STATUS_UNMATCHED, userId, "USER_REQUEST");
         chatRoomRepository.findByMatchIdAndDeleted(matchId, YesNo.N).ifPresent(ChatRoom::close);
 
-        notificationService.notify(match.partnerOf(userId), Notification.TYPE_MATCH,
-                "매칭이 종료되었어요",
+        // S7-14 문구 그대로. 누가·왜 끝냈는지는 담지 않는다.
+        notificationService.notify(match.partnerOf(userId), NotificationEvent.MATCH_ENDED,
+                "매칭이 종료됐어요",
                 "진행 중이던 대화가 마무리되었습니다. 새로운 매칭을 시작해 보세요.",
                 "MATCH", matchId);
 

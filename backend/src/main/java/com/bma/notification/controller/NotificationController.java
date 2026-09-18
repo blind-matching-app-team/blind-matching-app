@@ -4,6 +4,8 @@ import com.bma.common.response.ApiResponse;
 import com.bma.common.response.PageResponse;
 import com.bma.common.security.CustomUserPrincipal;
 import com.bma.notification.dto.NotificationDtos.NotificationResponse;
+import com.bma.notification.dto.NotificationDtos.ReadAllResult;
+import com.bma.notification.dto.NotificationDtos.ReadResult;
 import com.bma.notification.dto.NotificationDtos.UnreadCountResponse;
 import com.bma.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 인앱 알림 API.
+ * 인앱 알림 API (S7).
  *
  * <p>모든 조회/수정은 토큰 주체의 알림으로 한정된다.</p>
  */
@@ -33,22 +35,25 @@ public class NotificationController {
     /**
      * 알림 목록 조회.
      *
-     * @param principal 인증 주체
-     * @param page      페이지 번호
-     * @param size      페이지 크기
-     * @return 알림 페이지
+     * @param principal  인증 주체
+     * @param page       페이지 번호
+     * @param size       페이지 크기
+     * @param unreadOnly 안 읽은 알림만 볼지
+     * @return 알림 페이지(최신순)
      */
-    @Operation(summary = "알림 목록")
+    @Operation(summary = "알림 목록 (S7)",
+            description = "최신순 페이지. 각 항목에 사건 코드(eventCode)와 클릭 이동 정보(target)가 있다. unreadOnly=true 면 안 읽은 것만.")
     @GetMapping
     public ApiResponse<PageResponse<NotificationResponse>> list(
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ApiResponse.ok(notificationService.getNotifications(principal.userId(), page, size));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "false") boolean unreadOnly) {
+        return ApiResponse.ok(notificationService.getNotifications(principal.userId(), page, size, unreadOnly));
     }
 
     /**
-     * 안 읽은 알림 수 조회.
+     * 안 읽은 알림 수 조회 (사이드바 알림 배지).
      *
      * @param principal 인증 주체
      * @return 안 읽은 알림 수
@@ -65,25 +70,24 @@ public class NotificationController {
      *
      * @param principal 인증 주체
      * @param id        알림 ID
-     * @return 빈 성공 응답
+     * @return 읽은 시각과 남은 안 읽은 수
      */
-    @Operation(summary = "알림 읽음 처리")
+    @Operation(summary = "알림 읽음 처리", description = "본인 알림만. 이미 읽은 알림이면 그대로 200(멱등). 남의 알림은 404.")
     @PutMapping("/{id}/read")
-    public ApiResponse<Void> read(@AuthenticationPrincipal CustomUserPrincipal principal,
-                                  @PathVariable Long id) {
-        notificationService.markRead(principal.userId(), id);
-        return ApiResponse.ok();
+    public ApiResponse<ReadResult> read(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                        @PathVariable Long id) {
+        return ApiResponse.ok(notificationService.markRead(principal.userId(), id));
     }
 
     /**
-     * 전체 읽음 처리.
+     * 전체 읽음 처리 (S7-08).
      *
      * @param principal 인증 주체
-     * @return 처리된 건수
+     * @return 바뀐 건수와 남은 안 읽은 수(0)
      */
-    @Operation(summary = "알림 전체 읽음 처리")
+    @Operation(summary = "알림 전체 읽음 처리 (S7-08)")
     @PutMapping("/read-all")
-    public ApiResponse<Integer> readAll(@AuthenticationPrincipal CustomUserPrincipal principal) {
+    public ApiResponse<ReadAllResult> readAll(@AuthenticationPrincipal CustomUserPrincipal principal) {
         return ApiResponse.ok(notificationService.markAllRead(principal.userId()));
     }
 }

@@ -27,6 +27,18 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Page<Notification> findByUserIdAndDeletedOrderByIdDesc(Long userId, String deleted, Pageable pageable);
 
     /**
+     * 읽음 여부로 걸러 최신순으로 페이지 조회한다 ({@code unreadOnly} 필터).
+     *
+     * @param userId   수신자
+     * @param readYn   읽음 여부
+     * @param deleted  논리 삭제 여부
+     * @param pageable 페이지 정보
+     * @return 알림 페이지
+     */
+    Page<Notification> findByUserIdAndReadYnAndDeletedOrderByIdDesc(Long userId, String readYn, String deleted,
+                                                                    Pageable pageable);
+
+    /**
      * 소유자까지 지정해 알림을 조회한다. 타인의 알림을 읽음 처리하는 것을 막는다.
      *
      * @param id      알림 ID

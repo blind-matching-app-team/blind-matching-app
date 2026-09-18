@@ -49,9 +49,17 @@ public class Notification extends BaseAuditEntity {
     @Column(name = "USER_ID", nullable = false)
     private Long userId;
 
-    /** 알림 유형. */
+    /** 알림 유형(큰 분류). {@link NotificationEvent#category()} 에서 파생된다. */
     @Column(name = "NOTIFICATION_TYPE", nullable = false, length = 30)
     private String notificationType;
+
+    /**
+     * 알림 사건 코드({@link NotificationEvent}). 프론트가 아이콘과 이동 화면을 정하는 기준.
+     *
+     * <p>V9 이전에 쌓인 행은 제목으로 백필했고, 남은 null 은 응답에서 SYSTEM 으로 취급한다.</p>
+     */
+    @Column(name = "EVENT_CODE", length = 40)
+    private String eventCode;
 
     /** 알림 제목. */
     @Column(name = "TITLE", nullable = false, length = 200)
@@ -81,23 +89,33 @@ public class Notification extends BaseAuditEntity {
      * 새 알림을 만든다.
      *
      * @param userId        수신자
-     * @param type          알림 유형
+     * @param event         알림 사건. 유형(분류)과 이동 화면은 여기서 파생된다
      * @param title         제목
      * @param content       내용
      * @param referenceType 참조 유형
      * @param referenceId   참조 ID
      * @return 저장 대상 엔티티
      */
-    public static Notification of(Long userId, String type, String title, String content,
+    public static Notification of(Long userId, NotificationEvent event, String title, String content,
                                   String referenceType, Long referenceId) {
         Notification notification = new Notification();
         notification.userId = userId;
-        notification.notificationType = type;
+        notification.notificationType = event.category();
+        notification.eventCode = event.name();
         notification.title = title;
         notification.content = content;
         notification.referenceType = referenceType;
         notification.referenceId = referenceId;
         return notification;
+    }
+
+    /**
+     * 저장된 사건 코드를 해석한다.
+     *
+     * @return 사건. 코드가 없거나 모르는 값이면 {@link NotificationEvent#SYSTEM}
+     */
+    public NotificationEvent event() {
+        return NotificationEvent.fromCode(eventCode).orElse(NotificationEvent.SYSTEM);
     }
 
     /**
