@@ -15,7 +15,7 @@ import com.bma.common.exception.BusinessException;
 import com.bma.common.exception.ErrorCode;
 import com.bma.common.response.PageResponse;
 import com.bma.common.security.ChatRoomAccessChecker;
-import com.bma.notification.entity.Notification;
+import com.bma.notification.entity.NotificationEvent;
 import com.bma.notification.service.NotificationService;
 import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
 import com.bma.reveal.entity.RevealPolicy;
@@ -257,7 +257,7 @@ public class ChatService implements ChatRoomAccessChecker {
         revealService.recordMessage(room.getMatchId(), calculateChatMinutes(roomId));
 
         if (partnerId != null) {
-            notificationService.notify(partnerId, Notification.TYPE_MESSAGE,
+            notificationService.notify(partnerId, NotificationEvent.MESSAGE_RECEIVED,
                     "새 메시지가 도착했어요", preview(request.content()), "CHAT_ROOM", roomId);
         }
 

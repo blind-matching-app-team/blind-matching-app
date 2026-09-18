@@ -5,7 +5,7 @@ import com.bma.common.exception.BusinessException;
 import com.bma.common.exception.ErrorCode;
 import com.bma.matching.entity.Match;
 import com.bma.matching.repository.MatchRepository;
-import com.bma.notification.entity.Notification;
+import com.bma.notification.entity.NotificationEvent;
 import com.bma.notification.service.NotificationService;
 import com.bma.reveal.dto.RevealDtos.ConsentRequest;
 import com.bma.reveal.dto.RevealDtos.ConsentResult;
@@ -153,16 +153,17 @@ public class RevealService {
 
             notificationService.notifyAll(
                     List.of(userId, partnerId),
-                    Notification.TYPE_REVEAL,
+                    NotificationEvent.REVEAL_LEVEL_UP,
                     "프로필 공개 단계가 올라갔어요",
                     "'" + policy.getRevealName() + "' 단계로 상대의 정보가 더 공개되었습니다.",
                     "MATCH", matchId);
 
             log.info("공개 단계 상승: matchId={}, level={}", matchId, targetLevel);
         } else if (accepted) {
-            // 내 동의만 기록된 상태. 상대에게 동의를 요청하는 알림을 보낸다.
-            notificationService.notify(partnerId, Notification.TYPE_REVEAL,
-                    "상대가 프로필 공개를 원해요",
+            // 내 동의만 기록된 상태. 상대에게 동의를 요청하는 알림을 보낸다(S7-12 문구).
+            // 상대는 아직 블라인드 상태라 이름 대신 "???" 로 부른다.
+            notificationService.notify(partnerId, NotificationEvent.REVEAL_REQUESTED,
+                    "???님이 다음 단계를 요청했어요",
                     "'" + policy.getRevealName() + "' 단계 공개에 동의하면 서로의 정보가 더 공개됩니다.",
                     "MATCH", matchId);
         }
