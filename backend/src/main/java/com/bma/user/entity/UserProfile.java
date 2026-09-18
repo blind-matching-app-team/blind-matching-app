@@ -108,6 +108,27 @@ public class UserProfile extends BaseAuditEntity {
     }
 
     /**
+     * 탈퇴 시 프로필을 익명화한다 (S8-15).
+     *
+     * <p>닉네임은 유니크 제약이 있어 자리표시자로 바꾼다(그래서 같은 닉네임을 다른 사람이 쓸 수 있다).
+     * 생년월일은 NOT NULL 이라 남기되 나머지 식별 가능한 값은 모두 지운다. 논리 삭제된 프로필은
+     * 채팅목록·매칭 조회에서 걸러지므로 상대에게는 {@code partner: null} 로 내려간다
+     * (프론트가 "탈퇴한 사용자"로 표시).</p>
+     */
+    public void anonymize() {
+        this.nickname = "탈퇴회원" + id;
+        this.genderCode = null;
+        this.mbtiCode = null;
+        this.regionCode = null;
+        this.occupation = null;
+        this.heightCm = null;
+        this.introduction = null;
+        this.profileStatus = STATUS_INCOMPLETE;
+        this.profileScore = 0;
+        markDeleted();
+    }
+
+    /**
      * 만 나이를 계산한다.
      *
      * @return 만 나이. 생년월일이 없으면 {@code null}

@@ -3,11 +3,15 @@ import com.bma.common.response.ApiResponse;
 import com.bma.common.security.CustomUserPrincipal;
 import com.bma.user.dto.UserDtos.MeResponse;
 import com.bma.user.dto.UserDtos.NicknameCheckResponse;
+import com.bma.user.dto.UserDtos.PasswordChangeRequest;
+import com.bma.user.dto.UserDtos.PasswordChangeResult;
 import com.bma.user.dto.UserDtos.PreferenceRequest;
 import com.bma.user.dto.UserDtos.PreferenceResponse;
 import com.bma.user.dto.UserDtos.ProfileImageResponse;
 import com.bma.user.dto.UserDtos.ProfileRequest;
 import com.bma.user.dto.UserDtos.ProfileResponse;
+import com.bma.user.dto.UserDtos.WithdrawResult;
+import com.bma.user.service.AccountService;
 import com.bma.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,6 +43,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserController {
 
     private final UserService userService;
+    private final AccountService accountService;
 
     /**
      * 내 계정 정보 조회.
@@ -46,10 +51,41 @@ public class UserController {
      * @param principal 인증 주체
      * @return 계정 정보
      */
-    @Operation(summary = "내 계정 정보 조회")
+    @Operation(summary = "내 계정 정보 조회 (S8-08)",
+            description = "이메일·닉네임·가입 수단·비밀번호 보유 여부. passwordSet=false 면 비밀번호 변경 메뉴(S8-16)를 숨긴다.")
     @GetMapping
     public ApiResponse<MeResponse> me(@AuthenticationPrincipal CustomUserPrincipal principal) {
         return ApiResponse.ok(userService.getMe(principal.userId()));
+    }
+
+    /**
+     * 비밀번호 변경 (S8-16).
+     *
+     * @param principal 인증 주체
+     * @param request   현재/새 비밀번호
+     * @return 변경 결과
+     */
+    @Operation(summary = "비밀번호 변경 (S8-16)",
+            description = "현재 비밀번호 확인 후 변경. 다른 기기의 로그인(리프레시 토큰)은 모두 끊는다. 소셜 전용 계정은 409.")
+    @PutMapping("/password")
+    public ApiResponse<PasswordChangeResult> changePassword(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody PasswordChangeRequest request) {
+        return ApiResponse.ok(accountService.changePassword(principal.userId(), request));
+    }
+
+    /**
+     * 회원 탈퇴 (S8-15).
+     *
+     * @param principal 인증 주체
+     * @return 탈퇴 결과
+     */
+    @Operation(summary = "회원 탈퇴 (S8-15)",
+            description = "진행 중 매칭 종료(상대에게 종료 알림만), 채팅방 닫기, 프로필·사진·선호·답변·알림 정리, "
+                    + "토큰 폐기, 계정 익명화(WITHDRAWN). 매칭·메시지 이력은 상대의 히스토리를 위해 남는다.")
+    @DeleteMapping
+    public ApiResponse<WithdrawResult> withdraw(@AuthenticationPrincipal CustomUserPrincipal principal) {
+        return ApiResponse.ok(accountService.withdraw(principal.userId()));
     }
 
     /**
