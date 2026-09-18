@@ -142,7 +142,11 @@ public class AuthService {
      * @return 새로 발급된 토큰
      * @throws BusinessException 토큰이 유효하지 않거나 재사용이 탐지된 경우
      */
-    @Transactional
+    // noRollbackFor 를 붙인 이유: 이 메서드가 던지는 BusinessException 은 전부 "토큰을 폐기한 뒤"
+    // 던지는 것이다(재사용 탐지 → 전 세션 폐기, 소유자 불일치, 비활성 계정). 기본 규칙대로
+    // 롤백되면 폐기가 취소되어, 탈취된 토큰을 재사용해도 정상 세션이 그대로 살아남는다
+    // (BMA-47 회귀 검증에서 발견). 폐기는 반드시 남아야 한다.
+    @Transactional(noRollbackFor = BusinessException.class)
     public TokenResponse refresh(String refreshToken) {
         Claims claims;
         try {
