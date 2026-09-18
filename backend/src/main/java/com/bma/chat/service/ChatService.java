@@ -399,10 +399,12 @@ public class ChatService implements ChatRoomAccessChecker {
         if (!room.isActive()) {
             return 0;
         }
+        // 아직 아무것도 읽지 않은 참여자는 읽음 위치가 null 이다. map 뒤에 findFirst 를 두면
+        // Optional 이 null 을 담지 못해 NPE 가 나므로(기존 목록 API 의 버그), 참여자를 먼저 찾는다.
         Long lastReadMessageId = members.stream()
                 .filter(member -> member.getUserId().equals(userId))
-                .map(ChatRoomMember::getLastReadMessageId)
                 .findFirst()
+                .map(ChatRoomMember::getLastReadMessageId)
                 .orElse(null);
         return messageRepository.countUnread(
                 room.getId(), lastReadMessageId == null ? 0L : lastReadMessageId, userId);
