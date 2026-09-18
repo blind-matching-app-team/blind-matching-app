@@ -17,6 +17,7 @@ has() { echo "$J" | grep -q -- "$1"; }
 rooms_n() { echo "$J" | grep -o '"chatRoomId"' | wc -l | tr -d ' '; }
 check() { if [ "$3" = true ]; then PASS=$((PASS+1)); echo "  ✔ $1"; else FAIL=$((FAIL+1)); echo "  ✘ $1  [http=$CODE] $(echo "$J" | head -c 400)"; fi; }
 step() { echo "[$1]"; }
+urlenc() { printf %s "$1" | od -An -tx1 -v | tr -d '[:space:]' | sed 's/../%&/g'; }
 login() { req POST /api/v1/auth/login "" "{\"email\":\"$1\",\"password\":\"$2\"}"; }
 ME=/api/v1/users/me
 
@@ -96,7 +97,7 @@ req POST /api/v1/auth/signup "" "{\"email\":\"$EMAIL_A\",\"password\":\"$PW\"}";
 check "200, userId≠이전" "" "$([ "$CODE" = 200 ] && [ -n "$USER_A2" ] && [ "$USER_A2" != "$USER_A" ] && echo true)"
 
 step "19. 새 계정에서 옛 닉네임 사용 가능 (익명화로 닉네임 해제)"
-login "$EMAIL_A" "$PW"; TOK_A2=$(field accessToken); req GET "$ME/profile/nickname-check?nickname=$NICK_A" "$TOK_A2"
+login "$EMAIL_A" "$PW"; TOK_A2=$(field accessToken); req GET "$ME/profile/nickname-check?nickname=$(urlenc "$NICK_A")" "$TOK_A2"
 check "available=true" "" "$([ "$CODE" = 200 ] && [ "$(field available)" = true ] && echo true)"
 
 step "20. 새 계정 내 계정 → 이전 프로필·매칭 미승계 (nickname=null, hasMatch=false)"

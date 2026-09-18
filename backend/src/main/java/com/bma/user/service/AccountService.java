@@ -148,13 +148,16 @@ public class AccountService {
         profileRepository.findById(userId).ifPresent(profile -> profile.anonymize());
         preferenceRepository.findById(userId).ifPresent(preference -> preference.markDeleted());
         answerRepository.findByUserIdAndDeleted(userId, YesNo.N).forEach(UserAnswer::markDeleted);
-        notificationRepository.deleteAllOf(userId);
 
         // 4) 토큰
         revokeAllTokens(userId);
 
         // 5) 계정 익명화
         user.withdraw();
+
+        // 6) 알림 벌크 삭제. clearAutomatically 가 영속성 컨텍스트를 비우므로 반드시 마지막에 부른다.
+        //    (앞에 두면 그 뒤에 바꾼 user·token 변경이 detached 상태에서 유실된다 — 검증 중 실제로 발생)
+        notificationRepository.deleteAllOf(userId);
 
         log.info("회원 탈퇴: userId={}, 종료된 매칭={}", userId, matches.size());
         return new WithdrawResult(userId, User.STATUS_WITHDRAWN, LocalDateTime.now(), matches.size());
