@@ -90,6 +90,25 @@ public class ChatRoom extends BaseAuditEntity {
         return STATUS_ACTIVE.equals(roomStatus) && !isDeleted();
     }
 
+    /** 목록 응답의 상태값: 대화 가능. */
+    public static final String LIST_STATUS_ACTIVE = "ACTIVE";
+
+    /** 목록 응답의 상태값: 매칭 종료로 읽기 전용(S6-12 종료됨 배지). */
+    public static final String LIST_STATUS_ENDED = "ENDED";
+
+    /**
+     * S6 목록에 내려줄 상태값을 만든다.
+     *
+     * <p>DB 의 {@code ROOM_STATUS}(ACTIVE/CLOSED)를 화면 계약(ACTIVE/ENDED)으로 바꾼다.
+     * 종료된 방은 목록에서 지우지 않고 읽기 전용으로 남기므로(매칭 히스토리 겸용),
+     * 프론트는 이 값으로 배지와 입력창 비활성화를 결정한다.</p>
+     *
+     * @return {@code ACTIVE} 또는 {@code ENDED}
+     */
+    public String listStatus() {
+        return isActive() ? LIST_STATUS_ACTIVE : LIST_STATUS_ENDED;
+    }
+
     /** 방을 종료 처리한다. */
     public void close() {
         this.roomStatus = STATUS_CLOSED;

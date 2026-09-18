@@ -17,10 +17,16 @@ import com.bma.common.response.PageResponse;
 import com.bma.common.security.ChatRoomAccessChecker;
 import com.bma.notification.entity.Notification;
 import com.bma.notification.service.NotificationService;
+import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
+import com.bma.reveal.entity.RevealPolicy;
 import com.bma.reveal.entity.RevealProgress;
 import com.bma.reveal.repository.RevealProgressRepository;
+import com.bma.reveal.service.ProfileMaskingService;
 import com.bma.reveal.service.RevealService;
 import com.bma.safety.service.SafetyService;
+import com.bma.user.entity.ProfileImage;
+import com.bma.user.entity.UserProfile;
+import com.bma.user.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -30,8 +36,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,6 +71,8 @@ public class ChatService implements ChatRoomAccessChecker {
     private final RevealService revealService;
     private final SafetyService safetyService;
     private final NotificationService notificationService;
+    private final ProfileMaskingService maskingService;
+    private final UserProfileRepository profileRepository;
 
     /**
      * {@inheritDoc}
@@ -76,10 +86,13 @@ public class ChatService implements ChatRoomAccessChecker {
     }
 
     /**
-     * 내가 참여 중인 채팅방 목록을 조회한다.
+     * 내가 참여 중인 채팅방 목록을 조회한다 (S6).
+     *
+     * <p>매칭이 종료된 방도 목록에 남긴다(읽기 전용, 매칭 히스토리 겸용). 내가 나간 방만 빠진다.
+     * 각 항목에 상대의 마스킹된 프로필, 마지막 메시지 미리보기, 안읽음 수를 함께 싣는다.</p>
      *
      * @param userId 사용자 ID
-     * @return 최근 대화순 채팅방 목록
+     * @return 최근 대화순 채팅방 목록. 없으면 빈 배열
      */
     public List<ChatRoomResponse> getMyRooms(Long userId) {
         List<ChatRoom> rooms = roomRepository.findRoomsOfUser(userId);
@@ -90,19 +103,92 @@ public class ChatService implements ChatRoomAccessChecker {
         List<Long> roomIds = rooms.stream().map(ChatRoom::getId).toList();
         List<Long> matchIds = rooms.stream().map(ChatRoom::getMatchId).toList();
 
-        // 방마다 개별 조회하면 N+1이 되므로 참여자와 공개 단계를 한 번에 가져온다.
-        List<ChatRoomMember> members = memberRepository.findByChatRoomIdInAndDeleted(roomIds, YesNo.N);
-        Map<Long, List<ChatRoomMember>> membersByRoom = members.stream()
+        // 방마다 개별 조회하면 N+1이 되므로 참여자·공개 단계·마지막 메시지·상대 프로필을 한 번에 가져온다.
+        Map<Long, List<ChatRoomMember>> membersByRoom = memberRepository
+                .findByChatRoomIdInAndDeleted(roomIds, YesNo.N).stream()
                 .collect(Collectors.groupingBy(ChatRoomMember::getChatRoomId));
         Map<Long, RevealProgress> progressByMatch = revealProgressRepository
                 .findByIdInAndDeleted(matchIds, YesNo.N).stream()
                 .collect(Collectors.toMap(RevealProgress::getId, Function.identity()));
+        Map<Long, ChatMessage> lastMessageById = messageRepository.findAllById(rooms.stream()
+                        .map(ChatRoom::getLastMessageId).filter(Objects::nonNull).toList()).stream()
+                .collect(Collectors.toMap(ChatMessage::getId, Function.identity()));
 
-        return rooms.stream()
-                .map(room -> toRoomResponse(room, userId,
-                        membersByRoom.getOrDefault(room.getId(), List.of()),
-                        progressByMatch.get(room.getMatchId())))
+        List<Long> partnerIds = rooms.stream()
+                .map(room -> partnerOf(membersByRoom.getOrDefault(room.getId(), List.of()), userId))
+                .filter(Objects::nonNull)
                 .toList();
+        Map<Long, UserProfile> profileByUser = profileRepository.findAllById(partnerIds).stream()
+                .filter(profile -> !profile.isDeleted())
+                .collect(Collectors.toMap(UserProfile::getId, Function.identity()));
+        Map<Long, List<ProfileImage>> imagesByOwner = maskingService.loadImagesByOwner(partnerIds);
+
+        List<ChatRoomResponse> responses = new ArrayList<>(rooms.size());
+        for (ChatRoom room : rooms) {
+            List<ChatRoomMember> members = membersByRoom.getOrDefault(room.getId(), List.of());
+            Long partnerId = partnerOf(members, userId);
+            RevealProgress progress = progressByMatch.get(room.getMatchId());
+            int level = progress == null ? RevealPolicy.LEVEL_HIDDEN : progress.getCurrentLevel();
+
+            UserProfile partnerProfile = partnerId == null ? null : profileByUser.get(partnerId);
+            MaskedProfileResponse partner = partnerProfile == null ? null
+                    : maskingService.mask(partnerProfile, imagesByOwner.getOrDefault(partnerId, List.of()), level);
+            ChatMessage last = room.getLastMessageId() == null ? null : lastMessageById.get(room.getLastMessageId());
+
+            responses.add(new ChatRoomResponse(
+                    room.getId(),
+                    room.getMatchId(),
+                    partnerId,
+                    room.listStatus(),
+                    partner,
+                    last == null ? null : preview(last.getMessageContent()),
+                    last == null ? null : last.getMessageType(),
+                    room.getLastMessageDate(),
+                    unreadCountOf(room, members, userId),
+                    level));
+        }
+        return responses;
+    }
+
+    /**
+     * 안 읽은 메시지 합계를 센다 (사이드바 채팅 배지).
+     *
+     * <p>목록 API 와 같은 규칙으로 세므로 두 수치가 항상 일치한다. 종료된 방은 세지 않는다.</p>
+     *
+     * @param userId 사용자 ID
+     * @return 합계
+     */
+    public long countUnreadTotal(Long userId) {
+        List<ChatRoom> rooms = roomRepository.findRoomsOfUser(userId);
+        if (rooms.isEmpty()) {
+            return 0;
+        }
+        Map<Long, List<ChatRoomMember>> membersByRoom = memberRepository
+                .findByChatRoomIdInAndDeleted(rooms.stream().map(ChatRoom::getId).toList(), YesNo.N).stream()
+                .collect(Collectors.groupingBy(ChatRoomMember::getChatRoomId));
+        return rooms.stream()
+                .mapToLong(room -> unreadCountOf(room, membersByRoom.getOrDefault(room.getId(), List.of()), userId))
+                .sum();
+    }
+
+    /**
+     * 채팅방을 내 목록에서 뺀다 (S6-11 나가기).
+     *
+     * <p>카카오톡과 같은 패턴이다: 상대 목록에는 그대로 남고, 방과 메시지는 지워지지 않는다.
+     * 나갈 때 읽음 위치를 마지막 메시지로 옮겨 두므로, 상대가 새 메시지를 보내
+     * 방이 다시 나타나면(자동 재입장) 그 이후 메시지만 안읽음으로 센다.</p>
+     *
+     * @param userId 요청자
+     * @param roomId 채팅방 ID
+     * @throws BusinessException 참여자가 아닌 경우
+     */
+    @Transactional
+    public void leaveRoom(Long userId, Long roomId) {
+        ChatRoomMember member = requireMember(userId, roomId);
+        roomRepository.findByIdAndDeleted(roomId, YesNo.N)
+                .ifPresent(room -> member.updateLastRead(room.getLastMessageId()));
+        member.leave();
+        log.info("채팅방 나가기: roomId={}, userId={}", roomId, userId);
     }
 
     /**
@@ -137,6 +223,12 @@ public class ChatService implements ChatRoomAccessChecker {
     public MessageResponse sendMessage(Long senderUserId, Long roomId, SendMessageRequest request) {
         ChatRoom room = requireActiveRoom(roomId);
         requireMember(senderUserId, roomId);
+
+        // 상대가 목록에서 나간 상태면 다시 들여보낸다(S6-11, 카카오톡 패턴).
+        // 나간 뒤 온 메시지부터 안읽음으로 세도록 읽음 위치는 나갈 때 이미 맞춰 두었다.
+        memberRepository.findByChatRoomIdAndDeleted(roomId, YesNo.N).stream()
+                .filter(member -> !member.getUserId().equals(senderUserId) && member.hasLeft())
+                .forEach(ChatRoomMember::rejoin);
 
         Long partnerId = findPartnerId(roomId, senderUserId);
         // 차단한(또는 차단당한) 상대에게는 메시지를 보낼 수 없다.
@@ -274,40 +366,46 @@ public class ChatService implements ChatRoomAccessChecker {
     }
 
     /**
-     * 방 하나를 응답 DTO로 변환한다.
+     * 방 참여자 중 상대를 찾는다.
      *
-     * @param room     채팅방
-     * @param userId   요청자
-     * @param members  방 참여자 목록
-     * @param progress 공개 단계 진행 상태(없을 수 있음)
-     * @return 응답 DTO
+     * <p>상대가 목록에서 나갔더라도(leaveDate 있음) 여전히 상대다. 나가기는 내 목록에서만
+     * 빠지는 것이지 방을 떠난 것이 아니기 때문이다. 논리 삭제된 참여자만 제외한다.</p>
+     *
+     * @param members 방 참여자
+     * @param userId  나
+     * @return 상대 ID. 없으면 {@code null}
      */
-    private ChatRoomResponse toRoomResponse(ChatRoom room, Long userId,
-                                            List<ChatRoomMember> members, RevealProgress progress) {
-        Long partnerId = members.stream()
-                .filter(ChatRoomMember::isActiveMember)
+    private Long partnerOf(List<ChatRoomMember> members, Long userId) {
+        return members.stream()
+                .filter(member -> !member.isDeleted())
                 .map(ChatRoomMember::getUserId)
                 .filter(id -> !id.equals(userId))
                 .findFirst()
                 .orElse(null);
+    }
 
+    /**
+     * 내가 안 읽은 메시지 수를 센다.
+     *
+     * <p>종료된 방은 0 이다(BMA-50: 종료된 방은 안읽음 카운트에 포함하지 않음). 그래야
+     * 사이드바 배지가 읽을 수 없는 방 때문에 계속 켜져 있지 않는다.</p>
+     *
+     * @param room    채팅방
+     * @param members 방 참여자
+     * @param userId  나
+     * @return 안 읽은 메시지 수
+     */
+    private long unreadCountOf(ChatRoom room, List<ChatRoomMember> members, Long userId) {
+        if (!room.isActive()) {
+            return 0;
+        }
         Long lastReadMessageId = members.stream()
                 .filter(member -> member.getUserId().equals(userId))
                 .map(ChatRoomMember::getLastReadMessageId)
                 .findFirst()
                 .orElse(null);
-
-        long unreadCount = messageRepository.countUnread(
+        return messageRepository.countUnread(
                 room.getId(), lastReadMessageId == null ? 0L : lastReadMessageId, userId);
-
-        return new ChatRoomResponse(
-                room.getId(),
-                room.getMatchId(),
-                partnerId,
-                room.getRoomStatus(),
-                room.getLastMessageDate(),
-                unreadCount,
-                progress == null ? 0 : progress.getCurrentLevel());
     }
 
     /**

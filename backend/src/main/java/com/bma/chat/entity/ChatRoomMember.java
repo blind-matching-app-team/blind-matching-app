@@ -83,6 +83,25 @@ public class ChatRoomMember extends BaseAuditEntity {
     }
 
     /**
+     * 목록에서 나간 상태인지 확인한다 (S6-11).
+     *
+     * @return 나갔고 논리 삭제되지 않았으면 {@code true}
+     */
+    public boolean hasLeft() {
+        return leaveDate != null && !isDeleted();
+    }
+
+    /** 내 목록에서 방을 뺀다. 방과 메시지는 그대로 남는다. */
+    public void leave() {
+        this.leaveDate = LocalDateTime.now();
+    }
+
+    /** 상대가 새 메시지를 보내 방이 다시 나타날 때 참여 상태로 되돌린다. */
+    public void rejoin() {
+        this.leaveDate = null;
+    }
+
+    /**
      * 읽음 위치를 갱신한다.
      *
      * @param messageId 마지막으로 읽은 메시지 ID

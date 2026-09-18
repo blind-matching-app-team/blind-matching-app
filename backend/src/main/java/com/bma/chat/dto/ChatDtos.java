@@ -1,6 +1,8 @@
 package com.bma.chat.dto;
 
 import com.bma.chat.entity.ChatMessage;
+import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -76,23 +78,44 @@ public final class ChatDtos {
     }
 
     /**
-     * 채팅방 목록 항목.
+     * 채팅방 목록 항목 (S6-09 리스트 아이템).
      *
-     * @param chatRoomId      채팅방 ID
+     * <p>아이템 하나를 그리는 데 필요한 것을 전부 담는다: 상대의 마스킹된 프로필(블러 아바타·"???"),
+     * 마지막 메시지 미리보기와 시각, 안읽음 배지, 종료됨 배지(S6-12)용 상태.</p>
+     *
+     * @param chatRoomId      채팅방 ID. 클릭 시 S11 로 넘긴다
      * @param matchId         매칭 ID
      * @param partnerUserId   상대 사용자 ID
-     * @param roomStatus      방 상태
-     * @param lastMessageDate 마지막 메시지 일시
-     * @param unreadCount     안 읽은 메시지 수
+     * @param status          {@code ACTIVE}(대화 가능) 또는 {@code ENDED}(매칭 종료, 읽기 전용)
+     * @param partner         상대 프로필(현재 공개 단계로 마스킹). 상대가 탈퇴 등으로 없으면 {@code null}
+     * @param lastMessage     마지막 메시지 미리보기(최대 50자). 메시지가 없으면 {@code null}
+     * @param lastMessageType 마지막 메시지 유형(TEXT/IMAGE/SYSTEM/REVEAL). 없으면 {@code null}
+     * @param lastMessageDate 마지막 메시지 일시. 없으면 {@code null}
+     * @param unreadCount     안 읽은 메시지 수. 종료된 방은 항상 0
      * @param revealLevel     현재 공개 단계
      */
+    // 미리보기·상대 정보가 없을 때도 키를 남긴다. 프론트가 아이템에 그대로 바인딩한다.
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record ChatRoomResponse(Long chatRoomId,
                                    Long matchId,
                                    Long partnerUserId,
-                                   String roomStatus,
+                                   String status,
+                                   MaskedProfileResponse partner,
+                                   String lastMessage,
+                                   String lastMessageType,
                                    LocalDateTime lastMessageDate,
                                    long unreadCount,
                                    Integer revealLevel) {
+    }
+
+    /**
+     * 안 읽은 메시지 합계 (사이드바 채팅 배지).
+     *
+     * <p>목록 API 의 {@code unreadCount} 합과 같다. 종료된 방은 세지 않는다.</p>
+     *
+     * @param unreadCount 합계
+     */
+    public record UnreadCountResponse(long unreadCount) {
     }
 
     /**
