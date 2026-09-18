@@ -64,7 +64,11 @@ public class UserService {
     public MeResponse getMe(Long userId) {
         User user = userRepository.findByIdAndDeleted(userId, YesNo.N)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return MeResponse.from(user);
+        // S8-08 프로필 요약(닉네임 + 이메일)을 한 번에 그릴 수 있게 닉네임을 같이 준다.
+        String nickname = profileRepository.findByIdAndDeleted(userId, YesNo.N)
+                .map(UserProfile::getNickname)
+                .orElse(null);
+        return MeResponse.of(user, nickname);
     }
 
     /**

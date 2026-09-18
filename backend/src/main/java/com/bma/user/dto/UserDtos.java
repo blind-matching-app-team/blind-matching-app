@@ -137,7 +137,10 @@ public final class UserDtos {
      * <p>비밀번호 해시, 소셜 제공자 키, 논리삭제 플래그 등 내부 필드는 포함하지 않는다.</p>
      *
      * @param userId        사용자 ID
-     * @param email         이메일
+     * @param email         이메일 (S8-08 프로필 요약)
+     * @param nickname      닉네임 (S8-08). 프로필 미작성이면 {@code null}
+     * @param loginProvider 가입 수단(LOCAL/KAKAO/NAVER/GOOGLE)
+     * @param passwordSet   비밀번호가 있는 계정인지. {@code false} 면 S8-16 비밀번호 변경 메뉴를 숨긴다
      * @param userStatus    계정 상태
      * @param userRole      권한 코드
      * @param emailVerified 이메일 인증 여부
@@ -145,8 +148,13 @@ public final class UserDtos {
      * @param lastLoginDate 마지막 로그인 일시
      * @param joinedDate    가입 일시
      */
+    // 닉네임이 없을 때도 키를 남긴다(프론트가 요약 카드에 그대로 바인딩한다).
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record MeResponse(Long userId,
                              String email,
+                             String nickname,
+                             String loginProvider,
+                             boolean passwordSet,
                              String userStatus,
                              String userRole,
                              boolean emailVerified,
@@ -157,13 +165,17 @@ public final class UserDtos {
         /**
          * 엔티티를 응답 DTO로 변환한다.
          *
-         * @param user 사용자 엔티티
+         * @param user     사용자 엔티티
+         * @param nickname 프로필 닉네임. 프로필이 없으면 {@code null}
          * @return 응답 DTO
          */
-        public static MeResponse from(User user) {
+        public static MeResponse of(User user, String nickname) {
             return new MeResponse(
                     user.getId(),
                     user.getEmail(),
+                    nickname,
+                    user.getLoginProvider(),
+                    user.getPasswordHash() != null,
                     user.getUserStatus(),
                     user.getUserRole(),
                     YesNo.isY(user.getEmailVerifiedYn()),
@@ -171,6 +183,45 @@ public final class UserDtos {
                     user.getLastLoginDate(),
                     user.getInsertDate());
         }
+    }
+
+    /**
+     * 비밀번호 변경 요청 (S8-16).
+     *
+     * @param currentPassword 현재 비밀번호
+     * @param newPassword     새 비밀번호. 회원가입과 같은 규칙(영문+숫자, 8~64자)
+     */
+    public record PasswordChangeRequest(
+            @NotBlank(message = "현재 비밀번호는 필수입니다.")
+            String currentPassword,
+
+            @NotBlank(message = "새 비밀번호는 필수입니다.")
+            @Size(min = 8, max = 64, message = "비밀번호는 8자 이상 64자 이하여야 합니다.")
+            @Pattern(
+                    regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$",
+                    message = "비밀번호는 영문과 숫자를 모두 포함해야 합니다.")
+            String newPassword
+    ) {
+    }
+
+    /**
+     * 비밀번호 변경 결과.
+     *
+     * @param changedAt     변경 일시
+     * @param sessionsEnded 다른 기기의 로그인을 끊기 위해 폐기한 리프레시 토큰 수
+     */
+    public record PasswordChangeResult(LocalDateTime changedAt, int sessionsEnded) {
+    }
+
+    /**
+     * 회원 탈퇴 결과 (S8-15).
+     *
+     * @param userId       탈퇴한 사용자 ID
+     * @param status       {@code WITHDRAWN}
+     * @param withdrawnAt  탈퇴 일시
+     * @param matchesEnded 함께 종료된 진행 중 매칭 수(상대에게는 종료 알림만 간다)
+     */
+    public record WithdrawResult(Long userId, String status, LocalDateTime withdrawnAt, int matchesEnded) {
     }
 
     /**

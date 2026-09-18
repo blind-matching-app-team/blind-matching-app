@@ -67,6 +67,10 @@ public enum ErrorCode {
     SOCIAL_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_013", "이메일 제공에 동의해야 가입할 수 있습니다."),
     /** 일회용 로그인 티켓이 없거나 이미 사용됨. */
     SOCIAL_TICKET_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_014", "만료되었거나 이미 사용된 로그인 요청입니다."),
+    /** 비밀번호 변경 시 현재 비밀번호 불일치 (S8-16). */
+    PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_015", "현재 비밀번호가 일치하지 않습니다."),
+    /** 소셜 로그인으로만 가입한 계정에는 비밀번호가 없어 변경할 수 없음 (S8-16 미노출 조건). */
+    PASSWORD_NOT_SET(HttpStatus.CONFLICT, "AUTH_016", "소셜 계정에는 비밀번호가 없습니다."),
 
     // ── 회원 ────────────────────────────────────────────────────────────────
     /** 사용자를 찾을 수 없음. */

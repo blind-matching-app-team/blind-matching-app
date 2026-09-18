@@ -186,4 +186,43 @@ public class User extends BaseAuditEntity {
     public void touchLastLogin() {
         this.lastLoginDate = LocalDateTime.now();
     }
+
+    /**
+     * 비밀번호를 바꾼다 (S8-16).
+     *
+     * @param newPasswordHash 새 비밀번호의 BCrypt 해시
+     */
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
+
+    /**
+     * 탈퇴 처리하며 개인정보를 익명화한다 (S8-15).
+     *
+     * <p>행을 물리 삭제하지 않는 이유: 매칭·메시지·신고 이력이 이 ID 를 참조하고, 상대방의
+     * 채팅목록(매칭 히스토리 겸용)에 "탈퇴한 사용자"로 남아야 하기 때문이다. 대신 개인을 특정할 수
+     * 있는 값은 모두 지운다. 이메일은 유니크 제약이 있어 자리표시자로 바꾸고, 그 결과 같은
+     * 이메일로 다시 가입할 수 있다. 소셜 키를 지우므로 같은 소셜 계정으로 다시 로그인하면
+     * 새 계정이 만들어진다.</p>
+     */
+    public void withdraw() {
+        this.userStatus = STATUS_WITHDRAWN;
+        this.email = "withdrawn-" + id + "@deleted.invalid";
+        this.passwordHash = null;
+        this.phoneNumber = null;
+        this.providerUserKey = null;
+        this.emailVerifiedYn = YesNo.N;
+        this.phoneVerifiedYn = YesNo.N;
+        this.suspendedUntil = null;
+        markDeleted();
+    }
+
+    /**
+     * 탈퇴한 계정인지 확인한다.
+     *
+     * @return 탈퇴했으면 {@code true}
+     */
+    public boolean isWithdrawn() {
+        return STATUS_WITHDRAWN.equals(userStatus);
+    }
 }
