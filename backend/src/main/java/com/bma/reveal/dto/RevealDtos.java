@@ -1,5 +1,6 @@
 package com.bma.reveal.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -106,6 +107,9 @@ public final class RevealDtos {
      * @param introduction 자기소개
      * @param imageKeys    단계에 맞는 이미지 오브젝트 키 목록
      */
+    // 단계에 따라 가려진 필드는 "키 없음"이 아니라 null 로 명시한다. 전역 non_null 설정을
+    // 그대로 두면 nickname 같은 필드가 단계마다 있다 없다 해서 프론트 바인딩이 흔들린다.
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record MaskedProfileResponse(Long userId,
                                         Integer revealLevel,
                                         String nickname,

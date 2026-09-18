@@ -56,7 +56,7 @@ check "200, matchId 포함, partner·reveal 포함" "" "$([ "$CODE" = 200 ] && [
 step "14. 인증 없이 현재 매칭"; req GET /api/v1/matches/current ""
 check "401" "" "$([ "$CODE" = 401 ] && echo true)"
 step "15. B 가 없는 매칭 ID 로 그만두기"; req DELETE /api/v1/matches/999999999 "$TOK_B"
-check "404 MATCH_001" "" "$([ "$CODE" = 404 ] && [ "$(field code)" = MATCH_001 ] && echo true)"
+check "404 MATCH_003" "" "$([ "$CODE" = 404 ] && [ "$(field code)" = MATCH_003 ] && echo true)"
 step "16. B 매칭 그만두기 (S5-16)"; req DELETE "/api/v1/matches/$MATCH_ID" "$TOK_B"
 check "200" "" "$([ "$CODE" = 200 ] && echo true)"
 step "17. A 현재 매칭 - 빈 상태로 전환"; req GET /api/v1/matches/current "$TOK_A"
