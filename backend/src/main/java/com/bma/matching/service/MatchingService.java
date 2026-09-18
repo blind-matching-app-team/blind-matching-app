@@ -9,9 +9,11 @@ import com.bma.common.exception.BusinessException;
 import com.bma.common.exception.ErrorCode;
 import com.bma.matching.dto.MatchingDtos.ActionRequest;
 import com.bma.matching.dto.MatchingDtos.ActionResult;
+import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
 import com.bma.matching.dto.MatchingDtos.QueueResponse;
 import com.bma.matching.dto.MatchingDtos.RecommendationResponse;
+import com.bma.matching.dto.MatchingDtos.RevealSummary;
 import com.bma.matching.entity.Match;
 import com.bma.matching.entity.MatchQueue;
 import com.bma.matching.entity.UserAction;
@@ -21,8 +23,16 @@ import com.bma.matching.repository.MatchingQueryRepository;
 import com.bma.matching.repository.UserActionRepository;
 import com.bma.notification.entity.Notification;
 import com.bma.notification.service.NotificationService;
+import com.bma.onboarding.entity.Question;
+import com.bma.onboarding.entity.QuestionOption;
+import com.bma.onboarding.entity.UserAnswer;
+import com.bma.onboarding.repository.QuestionOptionRepository;
+import com.bma.onboarding.repository.QuestionRepository;
+import com.bma.onboarding.repository.UserAnswerRepository;
+import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
 import com.bma.reveal.entity.RevealPolicy;
 import com.bma.reveal.entity.RevealProgress;
+import com.bma.reveal.repository.RevealPolicyRepository;
 import com.bma.reveal.repository.RevealProgressRepository;
 import com.bma.reveal.service.ProfileMaskingService;
 import com.bma.reveal.service.RevealService;
@@ -38,11 +48,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -72,6 +84,10 @@ public class MatchingService {
     private final UserPreferenceRepository preferenceRepository;
     private final UserBlockRepository blockRepository;
     private final RevealProgressRepository revealProgressRepository;
+    private final RevealPolicyRepository revealPolicyRepository;
+    private final QuestionRepository questionRepository;
+    private final QuestionOptionRepository optionRepository;
+    private final UserAnswerRepository answerRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatService chatService;
     private final RevealService revealService;
@@ -192,33 +208,183 @@ public class MatchingService {
     /**
      * 내 매칭 목록을 조회한다.
      *
+     * <p>각 항목에 S5 카드가 필요로 하는 것(상대 마스킹 프로필, 공통관심사, Reveal 진행 요약,
+     * 채팅방 ID)을 함께 싣는다. 진행 중인 매칭이 없으면 빈 배열이다.</p>
+     *
      * @param userId 요청자
-     * @return 진행 중인 매칭 목록
+     * @return 진행 중인 매칭 목록(최신순)
      */
     public List<MatchResponse> getMyMatches(Long userId) {
         List<Match> matches = matchRepository.findActiveMatches(userId, Match.STATUS_ACTIVE);
         if (matches.isEmpty()) {
             return List.of();
         }
-
-        List<Long> matchIds = matches.stream().map(Match::getId).toList();
-
-        // 공개 단계와 채팅방을 한 번에 조회해 N+1을 피한다.
-        Map<Long, Integer> levelByMatch = revealProgressRepository.findByIdInAndDeleted(matchIds, YesNo.N)
-                .stream()
-                .collect(Collectors.toMap(RevealProgress::getId, RevealProgress::getCurrentLevel));
-        Map<Long, Long> roomIdByMatch = chatRoomRepository.findRoomsOfUser(userId).stream()
-                .collect(Collectors.toMap(ChatRoom::getMatchId, ChatRoom::getId, (first, second) -> first));
-
-        return matches.stream()
-                .map(match -> MatchResponse.of(match, userId,
-                        levelByMatch.getOrDefault(match.getId(), RevealPolicy.LEVEL_HIDDEN),
-                        roomIdByMatch.get(match.getId())))
-                .toList();
+        return buildMatchResponses(userId, matches);
     }
 
     /**
-     * 상대와의 매칭을 해제한다.
+     * 가장 최근 진행 중인 매칭 1건을 조회한다 (S5 메인 허브).
+     *
+     * @param userId 요청자
+     * @return 매칭 유무 플래그와 최근 매칭. 없으면 {@code hasMatch=false, match=null}
+     */
+    public CurrentMatchResponse getCurrentMatch(Long userId) {
+        List<Match> matches = matchRepository.findActiveMatches(userId, Match.STATUS_ACTIVE);
+        if (matches.isEmpty()) {
+            return CurrentMatchResponse.none();
+        }
+        // findActiveMatches 가 성사 일시 내림차순이라 첫 항목이 가장 최근이다.
+        return CurrentMatchResponse.of(buildMatchResponses(userId, List.of(matches.get(0))).get(0));
+    }
+
+    /**
+     * 매칭 목록을 카드 응답으로 조립한다. 부가 정보는 전부 일괄 조회해 N+1 을 피한다.
+     *
+     * @param userId  요청자
+     * @param matches 진행 중인 매칭들
+     * @return 응답 목록(입력 순서 유지)
+     */
+    private List<MatchResponse> buildMatchResponses(Long userId, List<Match> matches) {
+        List<Long> matchIds = matches.stream().map(Match::getId).toList();
+        List<Long> partnerIds = matches.stream().map(match -> match.partnerOf(userId)).toList();
+
+        Map<Long, RevealProgress> progressByMatch = revealProgressRepository
+                .findByIdInAndDeleted(matchIds, YesNo.N).stream()
+                .collect(Collectors.toMap(RevealProgress::getId, Function.identity()));
+        Map<Long, Long> roomIdByMatch = chatRoomRepository.findRoomsOfUser(userId).stream()
+                .collect(Collectors.toMap(ChatRoom::getMatchId, ChatRoom::getId, (first, second) -> first));
+        Map<Long, UserProfile> profileByUser = profileRepository.findAllById(partnerIds).stream()
+                .filter(profile -> !profile.isDeleted())
+                .collect(Collectors.toMap(UserProfile::getId, Function.identity()));
+        Map<Long, List<ProfileImage>> imagesByOwner = maskingService.loadImagesByOwner(partnerIds);
+        Map<Integer, RevealPolicy> policyByLevel = revealPolicyRepository
+                .findByUseYnAndDeletedOrderByRevealLevelAsc(YesNo.Y, YesNo.N).stream()
+                .collect(Collectors.toMap(RevealPolicy::getRevealLevel, Function.identity()));
+
+        InterestCatalog interests = loadInterestCatalog();
+        Set<Long> myInterests = selectedInterests(interests, userId);
+
+        List<MatchResponse> responses = new ArrayList<>(matches.size());
+        for (Match match : matches) {
+            Long partnerId = match.partnerOf(userId);
+            RevealProgress progress = progressByMatch.get(match.getId());
+            int level = progress == null ? RevealPolicy.LEVEL_HIDDEN : progress.getCurrentLevel();
+
+            UserProfile partnerProfile = profileByUser.get(partnerId);
+            MaskedProfileResponse partner = partnerProfile == null ? null
+                    : maskingService.mask(partnerProfile, imagesByOwner.getOrDefault(partnerId, List.of()), level);
+
+            responses.add(new MatchResponse(
+                    match.getId(),
+                    partnerId,
+                    match.getMatchStatus(),
+                    match.getMatchType(),
+                    match.getMatchDate(),
+                    level,
+                    roomIdByMatch.get(match.getId()),
+                    partner,
+                    interests.commonNames(myInterests, selectedInterests(interests, partnerId)),
+                    summarizeReveal(progress, policyByLevel)));
+        }
+        return responses;
+    }
+
+    /**
+     * Reveal 진행 요약을 만든다. S5-10 진행바가 이 값으로 그려진다.
+     *
+     * @param progress      진행 상태. 아직 없으면 {@code null}(단계 0, 대화 0 으로 본다)
+     * @param policyByLevel 단계별 정책
+     * @return 요약
+     */
+    private RevealSummary summarizeReveal(RevealProgress progress, Map<Integer, RevealPolicy> policyByLevel) {
+        int level = progress == null ? RevealPolicy.LEVEL_HIDDEN : progress.getCurrentLevel();
+        int messages = progress == null ? 0 : progress.getMessageCount();
+        int minutes = progress == null ? 0 : progress.getChatMinutes();
+
+        String currentName = Optional.ofNullable(policyByLevel.get(level))
+                .map(RevealPolicy::getRevealName)
+                .orElse("미공개");
+        RevealPolicy next = policyByLevel.get(level + 1);
+        if (next == null) {
+            // 최고 단계. 더 올라갈 곳이 없으므로 진행률은 100 이다.
+            return new RevealSummary(level, currentName, null, null, messages, null, minutes, null, 100, false);
+        }
+        return new RevealSummary(level, currentName,
+                next.getRevealLevel(), next.getRevealName(),
+                messages, next.getMinMessageCount(),
+                minutes, next.getMinChatMinutes(),
+                next.progressRate(messages, minutes),
+                next.requiresMutualConsent());
+    }
+
+    /**
+     * 관심사 문항의 보기 목록을 읽어 둔다. 공통관심사 계산에 쓴다.
+     *
+     * @return 관심사 카탈로그. 관심사 문항이 없으면 빈 카탈로그
+     */
+    private InterestCatalog loadInterestCatalog() {
+        List<Long> questionIds = questionRepository
+                .findByCategoryCodeAndUseYnAndDeleted(Question.CATEGORY_INTEREST, YesNo.Y, YesNo.N).stream()
+                .map(Question::getId)
+                .toList();
+        if (questionIds.isEmpty()) {
+            return new InterestCatalog(List.of(), List.of());
+        }
+        return new InterestCatalog(questionIds,
+                optionRepository.findByQuestionIdInAndDeletedOrderBySortOrderAsc(questionIds, YesNo.N));
+    }
+
+    /**
+     * 사용자가 관심사 문항에서 고른 보기 ID 집합.
+     *
+     * <p>논리 삭제된 답변(선택 해제)은 뺀다. 유니크 제약 때문에 재선택 시 같은 행을
+     * 되살리는 구조라 삭제 플래그를 반드시 봐야 한다({@code OnboardingService} 참고).</p>
+     *
+     * @param catalog 관심사 카탈로그
+     * @param userId  사용자
+     * @return 보기 ID 집합. 관심사 문항이 없으면 빈 집합
+     */
+    private Set<Long> selectedInterests(InterestCatalog catalog, Long userId) {
+        if (catalog.questionIds().isEmpty()) {
+            return Set.of();
+        }
+        return answerRepository.findByUserIdAndQuestionIdIn(userId, catalog.questionIds()).stream()
+                .filter(answer -> !answer.isDeleted() && answer.getOptionId() != null)
+                .map(UserAnswer::getOptionId)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * 관심사 문항·보기 묶음. 공통 항목을 계산한다.
+     *
+     * @param questionIds 관심사 문항 ID
+     * @param options     관심사 보기(정렬된 상태)
+     */
+    private record InterestCatalog(List<Long> questionIds, List<QuestionOption> options) {
+
+        /**
+         * 두 집합에 모두 있는 보기의 이름을 보기 정렬 순서대로 돌려준다.
+         *
+         * @param mine    내 선택
+         * @param partner 상대 선택
+         * @return 공통 관심사 이름 목록
+         */
+        List<String> commonNames(Set<Long> mine, Set<Long> partner) {
+            if (mine.isEmpty() || partner.isEmpty()) {
+                return List.of();
+            }
+            return options.stream()
+                    .filter(option -> mine.contains(option.getId()) && partner.contains(option.getId()))
+                    .map(QuestionOption::getOptionText)
+                    .toList();
+        }
+    }
+
+    /**
+     * 상대와의 매칭을 해제한다 (S5-16 매칭 그만두기).
+     *
+     * <p>신고·차단과 다른 완충 수단이다. 상대에게는 매칭이 끝났다는 알림만 가고
+     * 누가·왜 끝냈는지는 알리지 않는다(사양서 S5-16: 구체적 사유 비공개).</p>
      *
      * @param userId  요청자
      * @param matchId 매칭 ID
@@ -228,9 +394,18 @@ public class MatchingService {
     public void unmatch(Long userId, Long matchId) {
         Match match = matchRepository.findByIdAndParticipant(matchId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        if (!match.isActive()) {
+            // 이미 끝난 매칭을 다시 끝내도 상태는 같다. 알림이 두 번 가지 않게 여기서 멈춘다.
+            return;
+        }
 
         match.terminate(Match.STATUS_UNMATCHED, userId, "USER_REQUEST");
         chatRoomRepository.findByMatchIdAndDeleted(matchId, YesNo.N).ifPresent(ChatRoom::close);
+
+        notificationService.notify(match.partnerOf(userId), Notification.TYPE_MATCH,
+                "매칭이 종료되었어요",
+                "진행 중이던 대화가 마무리되었습니다. 새로운 매칭을 시작해 보세요.",
+                "MATCH", matchId);
 
         log.info("매칭 해제: matchId={}, byUserId={}", matchId, userId);
     }

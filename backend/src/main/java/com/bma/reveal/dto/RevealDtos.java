@@ -1,5 +1,6 @@
 package com.bma.reveal.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -98,13 +99,17 @@ public final class RevealDtos {
      * @param age          만 나이(단계 1 이상)
      * @param ageGroup     나이대 표기(예: "20대 후반")
      * @param genderCode   성별 코드
-     * @param regionCode   지역 코드
+     * @param regionCode   지역 코드. 전체 공개 전에는 시/도 코드, 전체 공개면 시/군/구 코드
+     * @param regionName   지역명(예: "서울특별시", 전체 공개면 "강남구"). 카드에 그대로 쓴다
      * @param mbtiCode     MBTI
      * @param occupation   직업(단계 1 이상)
      * @param heightCm     키(단계 1 이상)
      * @param introduction 자기소개
      * @param imageKeys    단계에 맞는 이미지 오브젝트 키 목록
      */
+    // 단계에 따라 가려진 필드는 "키 없음"이 아니라 null 로 명시한다. 전역 non_null 설정을
+    // 그대로 두면 nickname 같은 필드가 단계마다 있다 없다 해서 프론트 바인딩이 흔들린다.
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record MaskedProfileResponse(Long userId,
                                         Integer revealLevel,
                                         String nickname,
@@ -112,6 +117,7 @@ public final class RevealDtos {
                                         String ageGroup,
                                         String genderCode,
                                         String regionCode,
+                                        String regionName,
                                         String mbtiCode,
                                         String occupation,
                                         Integer heightCm,

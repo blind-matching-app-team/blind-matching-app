@@ -36,6 +36,13 @@ public class Question extends BaseAuditEntity {
     /** 질문 유형: 척도(숫자). */
     public static final String TYPE_SCALE = "SCALE";
 
+    /**
+     * 분류 코드: 관심사(S2 1구간).
+     *
+     * <p>매칭 카드(S5-09)의 "공통관심사"는 이 분류 문항에서 양쪽이 함께 고른 보기다.</p>
+     */
+    public static final String CATEGORY_INTEREST = "INTEREST";
+
     /** 질문 ID(PK). */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
