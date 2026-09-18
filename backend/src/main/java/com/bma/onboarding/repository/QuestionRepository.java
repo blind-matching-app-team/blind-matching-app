@@ -30,4 +30,16 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
      * @return 질문 목록
      */
     List<Question> findByIdInAndUseYnAndDeleted(List<Long> ids, String useYn, String deleted);
+
+    /**
+     * 특정 분류의 사용 중인 질문을 조회한다.
+     *
+     * <p>매칭 카드의 공통관심사 계산이 관심사 분류({@code INTEREST}) 문항만 골라낼 때 쓴다.</p>
+     *
+     * @param categoryCode 분류 코드
+     * @param useYn        사용 여부
+     * @param deleted      논리 삭제 여부
+     * @return 질문 목록
+     */
+    List<Question> findByCategoryCodeAndUseYnAndDeleted(String categoryCode, String useYn, String deleted);
 }

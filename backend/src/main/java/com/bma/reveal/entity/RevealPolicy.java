@@ -80,4 +80,23 @@ public class RevealPolicy extends BaseAuditEntity {
     public boolean isActivitySatisfied(int messageCount, int chatMinutes) {
         return messageCount >= minMessageCount && chatMinutes >= minChatMinutes;
     }
+
+    /**
+     * 이 단계에 도달하기까지의 대화량 진행률을 백분율로 계산한다.
+     *
+     * <p>S5-10 / S10 의 Reveal 진행바가 쓰는 값이다. 메시지 수와 대화 시간 두 조건 중
+     * <b>덜 채워진 쪽</b>을 기준으로 잰다. 둘 다 채워야 단계가 올라가므로 평균을 쓰면
+     * 한쪽만 채운 상태가 "거의 다 됐다"고 보이는 착시가 생긴다.</p>
+     *
+     * @param messageCount 누적 메시지 수
+     * @param chatMinutes  누적 대화 시간(분)
+     * @return 0~100. 조건이 없는 단계(임계값 모두 0)면 100
+     */
+    public int progressRate(int messageCount, int chatMinutes) {
+        double messageRatio = minMessageCount == null || minMessageCount == 0
+                ? 1.0 : Math.min(1.0, (double) messageCount / minMessageCount);
+        double minuteRatio = minChatMinutes == null || minChatMinutes == 0
+                ? 1.0 : Math.min(1.0, (double) chatMinutes / minChatMinutes);
+        return (int) Math.floor(Math.min(messageRatio, minuteRatio) * 100);
+    }
 }

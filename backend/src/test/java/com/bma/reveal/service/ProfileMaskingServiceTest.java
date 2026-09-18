@@ -1,6 +1,7 @@
 package com.bma.reveal.service;
 
 import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
+import com.bma.common.service.RegionService;
 import com.bma.reveal.entity.RevealPolicy;
 import com.bma.user.entity.ProfileImage;
 import com.bma.user.entity.UserProfile;
@@ -29,7 +30,9 @@ class ProfileMaskingServiceTest {
     @BeforeEach
     void setUp() {
         // 이미지 조회는 이 테스트의 관심사가 아니므로 목으로 대체한다.
-        maskingService = new ProfileMaskingService(Mockito.mock(ProfileImageRepository.class));
+        // RegionService 목은 Optional.empty() 를 돌려주므로 지역은 코드 접두 규칙으로 축약된다.
+        maskingService = new ProfileMaskingService(
+                Mockito.mock(ProfileImageRepository.class), Mockito.mock(RegionService.class));
     }
 
     @Test

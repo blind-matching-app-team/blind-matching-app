@@ -98,7 +98,8 @@ public final class RevealDtos {
      * @param age          만 나이(단계 1 이상)
      * @param ageGroup     나이대 표기(예: "20대 후반")
      * @param genderCode   성별 코드
-     * @param regionCode   지역 코드
+     * @param regionCode   지역 코드. 전체 공개 전에는 시/도 코드, 전체 공개면 시/군/구 코드
+     * @param regionName   지역명(예: "서울특별시", 전체 공개면 "강남구"). 카드에 그대로 쓴다
      * @param mbtiCode     MBTI
      * @param occupation   직업(단계 1 이상)
      * @param heightCm     키(단계 1 이상)
@@ -112,6 +113,7 @@ public final class RevealDtos {
                                         String ageGroup,
                                         String genderCode,
                                         String regionCode,
+                                        String regionName,
                                         String mbtiCode,
                                         String occupation,
                                         Integer heightCm,

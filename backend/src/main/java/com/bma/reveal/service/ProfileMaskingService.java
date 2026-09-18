@@ -1,6 +1,8 @@
 package com.bma.reveal.service;
 
+import com.bma.common.entity.Region;
 import com.bma.common.entity.YesNo;
+import com.bma.common.service.RegionService;
 import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
 import com.bma.reveal.entity.RevealPolicy;
 import com.bma.user.entity.ProfileImage;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 public class ProfileMaskingService {
 
     private final ProfileImageRepository imageRepository;
+    private final RegionService regionService;
 
     /**
      * 프로필 1건을 지정한 공개 단계로 마스킹한다.
@@ -74,6 +77,8 @@ public class ProfileMaskingService {
         boolean fullReveal = level >= RevealPolicy.LEVEL_FULL;
 
         Integer age = profile.age();
+        // 지역은 전체 공개 전까지 시/도 수준으로만 노출한다. 코드와 이름을 함께 준다.
+        Region visibleRegion = visibleRegion(profile.getRegionCode(), fullReveal);
 
         return new MaskedProfileResponse(
                 profile.getId(),
@@ -83,8 +88,8 @@ public class ProfileMaskingService {
                 partialOrAbove ? age : null,
                 toAgeGroup(age),
                 profile.getGenderCode(),
-                // 지역은 시/도 수준까지만 노출한다(코드 앞 2자리 규칙).
-                maskRegion(profile.getRegionCode(), fullReveal),
+                visibleRegion == null ? maskRegion(profile.getRegionCode(), fullReveal) : visibleRegion.getCode(),
+                visibleRegion == null ? null : visibleRegion.getName(),
                 profile.getMbtiCode(),
                 partialOrAbove ? profile.getOccupation() : null,
                 partialOrAbove ? profile.getHeightCm() : null,
@@ -114,7 +119,27 @@ public class ProfileMaskingService {
     }
 
     /**
+     * 공개 단계에 맞춰 노출할 지역을 {@code CM_REGION} 에서 찾는다.
+     *
+     * <p>전체 공개 전에는 상위 시/도를, 전체 공개면 시/군/구 자체를 돌려준다.
+     * 문자열 접두 규칙 대신 데이터의 상위 관계를 쓰므로 코드 체계가 바뀌어도 어긋나지 않는다.</p>
+     *
+     * @param regionCode 프로필의 지역 코드(시/군/구)
+     * @param fullReveal 전체 공개 여부
+     * @return 노출할 지역. 코드가 없거나 CM_REGION 에 없으면 {@code null}
+     */
+    private Region visibleRegion(String regionCode, boolean fullReveal) {
+        Region region = regionService.findSelectable(regionCode).orElse(null);
+        if (region == null || fullReveal) {
+            return region;
+        }
+        return regionService.findSidoOf(region).orElse(region);
+    }
+
+    /**
      * 지역 코드를 시/도 수준으로 축약한다.
+     *
+     * <p>{@code CM_REGION} 에서 코드를 찾지 못했을 때의 대비책이다(시드 이전 데이터 등).</p>
      *
      * @param regionCode 원본 지역 코드
      * @param fullReveal 전체 공개 여부

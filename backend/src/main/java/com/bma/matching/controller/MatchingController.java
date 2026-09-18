@@ -4,6 +4,7 @@ import com.bma.common.response.ApiResponse;
 import com.bma.common.security.CustomUserPrincipal;
 import com.bma.matching.dto.MatchingDtos.ActionRequest;
 import com.bma.matching.dto.MatchingDtos.ActionResult;
+import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
 import com.bma.matching.dto.MatchingDtos.QueueResponse;
 import com.bma.matching.dto.MatchingDtos.RecommendationResponse;
@@ -106,11 +107,27 @@ public class MatchingController {
      * @param principal 인증 주체
      * @return 진행 중인 매칭 목록
      */
-    @Operation(summary = "내 매칭 목록")
+    @Operation(summary = "내 매칭 목록",
+            description = "진행 중인 매칭을 최신순으로 반환한다. 각 항목에 상대의 마스킹된 프로필, "
+                    + "공통관심사, Reveal 진행 요약, 채팅방 ID 가 포함된다. 없으면 빈 배열.")
     @GetMapping("/matches")
     public ApiResponse<List<MatchResponse>> matches(
             @AuthenticationPrincipal CustomUserPrincipal principal) {
         return ApiResponse.ok(matchingService.getMyMatches(principal.userId()));
+    }
+
+    /**
+     * 현재(가장 최근) 매칭 조회. S5 메인 허브가 쓴다.
+     *
+     * @param principal 인증 주체
+     * @return 매칭 유무 플래그와 최근 매칭 1건
+     */
+    @Operation(summary = "현재 매칭 조회 (S5)",
+            description = "가장 최근 진행 중인 매칭 1건을 hasMatch 플래그와 함께 반환한다. 없으면 hasMatch=false, match=null.")
+    @GetMapping("/matches/current")
+    public ApiResponse<CurrentMatchResponse> currentMatch(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        return ApiResponse.ok(matchingService.getCurrentMatch(principal.userId()));
     }
 
     /**
@@ -120,7 +137,8 @@ public class MatchingController {
      * @param matchId   매칭 ID
      * @return 빈 성공 응답
      */
-    @Operation(summary = "매칭 해제", description = "연결된 채팅방도 함께 종료된다.")
+    @Operation(summary = "매칭 해제 (S5-16 매칭 그만두기)",
+            description = "연결된 채팅방도 함께 종료된다. 상대에게는 사유 없는 알림만 간다.")
     @DeleteMapping("/matches/{matchId}")
     public ApiResponse<Void> unmatch(@AuthenticationPrincipal CustomUserPrincipal principal,
                                      @PathVariable Long matchId) {
