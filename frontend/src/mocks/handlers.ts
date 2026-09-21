@@ -1,7 +1,9 @@
 import { http, HttpResponse } from 'msw';
 import { passwordResetHandlers } from './passwordReset';
+import { chatHandlers } from './chat';
 
 export const handlers = [
+  ...chatHandlers,
   ...passwordResetHandlers,
   http.post('/api/v1/matching/queue', () => {
     return HttpResponse.json(

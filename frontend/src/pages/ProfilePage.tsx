@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import { clearAuthSession, getUserId } from '../lib/auth';
@@ -30,8 +30,6 @@ export default function ProfilePage() {
   const showToast = useToast();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const unreadTotal = useMemo(() => 0, []);
 
   const handleMenuClick = (id: string) => {
     if (id === 'profile') {
@@ -76,9 +74,9 @@ export default function ProfilePage() {
 
   return (
     <div className="hub-shell chat-shell">
-      <SidebarNav activeItem="mypage" userId={userId ?? 1} unreadTotal={unreadTotal} />
+      <SidebarNav activeItem="mypage" userId={userId ?? 1} />
 
-      <main className="hub-main profile-main">
+      <main className="ui-enter hub-main profile-main">
         <header className="notification-header">
           <h1>마이페이지</h1>
         </header>
@@ -97,7 +95,9 @@ export default function ProfilePage() {
               key={item.id}
               type="button"
               className={
-                item.kind === 'highlight' ? 'profile-menu-item highlight' : 'profile-menu-item'
+                item.kind === 'highlight'
+                  ? 'ui-interactive profile-menu-item highlight'
+                  : 'ui-interactive profile-menu-item'
               }
               onClick={() => handleMenuClick(item.id)}
             >
@@ -110,14 +110,14 @@ export default function ProfilePage() {
         <div className="profile-actions">
           <button
             type="button"
-            className="profile-logout-button"
+            className="ui-interactive profile-logout-button"
             onClick={() => setShowLogoutConfirm(true)}
           >
             로그아웃
           </button>
           <button
             type="button"
-            className="profile-delete-link"
+            className="ui-interactive profile-delete-link"
             onClick={() => setShowDeleteConfirm(true)}
           >
             회원 탈퇴

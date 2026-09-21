@@ -34,12 +34,12 @@ export default function LoginPage() {
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="field-group">
             <span>이메일</span>
-            <input name="email" type="email" placeholder="your@email.com" />
+            <input className="ui-input" name="email" type="email" placeholder="your@email.com" />
           </label>
 
           <label className="field-group">
             <span>비밀번호</span>
-            <input type="password" placeholder="비밀번호를 입력해주세요" />
+            <input className="ui-input" type="password" placeholder="비밀번호를 입력해주세요" />
           </label>
 
           <div className="form-options">
@@ -50,7 +50,7 @@ export default function LoginPage() {
             <a href="#">비밀번호 찾기</a>
           </div>
 
-          <button type="submit" className="primary-button">
+          <button type="submit" className="ui-button ui-button--primary primary-button">
             로그인
           </button>
         </form>
@@ -59,11 +59,11 @@ export default function LoginPage() {
           <span>또는</span>
         </div>
 
-        <button type="button" className="social-button kakao-button">
+        <button type="button" className="ui-button social-button kakao-button">
           카카오로 계속하기
         </button>
 
-        <button type="button" className="social-button apple-button">
+        <button type="button" className="ui-button social-button apple-button">
           Apple로 계속하기
         </button>
 

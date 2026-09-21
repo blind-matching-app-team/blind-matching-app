@@ -20,7 +20,7 @@ function ResetLayout({
 }) {
   return (
     <main className="auth-page-shell">
-      <section className="auth-card reset-card" aria-labelledby="reset-title">
+      <section className="ui-enter auth-card reset-card" aria-labelledby="reset-title">
         <div className="logo-badge" aria-label="Blind Matching logo">
           <span>B</span>
         </div>
@@ -28,7 +28,7 @@ function ResetLayout({
         <p className="reset-description">{description}</p>
         {children}
         <div className="auth-footer">
-          <Link className="text-link" to="/login">
+          <Link className="ui-interactive text-link" to="/login">
             로그인으로 돌아가기
           </Link>
         </div>
@@ -76,6 +76,7 @@ export function ForgotPasswordPage() {
         <label className={`field-group ${error ? 'has-error' : ''}`}>
           <span className="reset-label">이메일</span>
           <input
+            className="ui-input"
             type="email"
             autoComplete="email"
             name="email"
@@ -96,7 +97,11 @@ export function ForgotPasswordPage() {
             {error}
           </p>
         )}
-        <button type="submit" className="submit-button" disabled={loading}>
+        <button
+          type="submit"
+          className="ui-button ui-button--primary submit-button"
+          disabled={loading}
+        >
           {loading ? '발송 중…' : sent ? '링크 다시 보내기' : '재설정 링크 보내기'}
         </button>
         {sent && (
@@ -161,11 +166,18 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
         }
       >
         {isNetworkError ? (
-          <button type="button" className="submit-button" onClick={() => navigate(0)}>
+          <button
+            type="button"
+            className="ui-button ui-button--primary submit-button"
+            onClick={() => navigate(0)}
+          >
             다시 시도하기
           </button>
         ) : (
-          <Link className="submit-button reset-link" to="/forgot-password">
+          <Link
+            className="ui-button ui-button--primary submit-button reset-link"
+            to="/forgot-password"
+          >
             새 재설정 링크 받기
           </Link>
         )}
@@ -182,6 +194,7 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
           </label>
           <div className="password-input-wrapper">
             <input
+              className="ui-input"
               id="reset-password"
               type={visible ? 'text' : 'password'}
               autoComplete="new-password"
@@ -194,7 +207,7 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
             />
             <button
               type="button"
-              className="password-toggle"
+              className="ui-interactive password-toggle"
               aria-label={visible ? '새 비밀번호 숨기기' : '새 비밀번호 표시'}
               onClick={() => setVisible(!visible)}
             >
@@ -214,6 +227,7 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
           </label>
           <div className="password-input-wrapper">
             <input
+              className="ui-input"
               id="reset-confirmation"
               type={confirmVisible ? 'text' : 'password'}
               autoComplete="new-password"
@@ -226,7 +240,7 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
             />
             <button
               type="button"
-              className="password-toggle"
+              className="ui-interactive password-toggle"
               aria-label={confirmVisible ? '새 비밀번호 확인 숨기기' : '새 비밀번호 확인 표시'}
               onClick={() => setConfirmVisible(!confirmVisible)}
             >
@@ -239,7 +253,11 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
             </span>
           )}
         </div>
-        <button type="submit" className="submit-button" disabled={loading}>
+        <button
+          type="submit"
+          className="ui-button ui-button--primary submit-button"
+          disabled={loading}
+        >
           {loading ? '변경 중…' : '비밀번호 변경하기'}
         </button>
       </form>

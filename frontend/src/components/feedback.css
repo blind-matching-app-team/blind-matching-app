@@ -38,21 +38,12 @@
   flex: 1;
   min-width: 0;
   min-height: 44px;
-  border: 0;
-  border-radius: 999px;
   padding: 8px 12px;
-  font: inherit;
-  font-size: 16px;
   font-weight: 500;
-  cursor: pointer;
-}
-.cm-cancel {
-  background: #fbf7fa;
-  color: #8a7a88;
 }
 .cm-confirm--normal {
-  background: #ed93b1;
-  color: #4b1528;
+  background: var(--ui-primary-bg);
+  color: var(--ui-primary-text);
 }
 .cm-confirm--danger {
   background: #e24b4a;

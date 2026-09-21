@@ -15,25 +15,29 @@ export default function SignUpPage() {
         <form className="login-form">
           <label className="field-group">
             <span>이름</span>
-            <input type="text" placeholder="이름을 입력해주세요" />
+            <input className="ui-input" type="text" placeholder="이름을 입력해주세요" />
           </label>
 
           <label className="field-group">
             <span>이메일</span>
-            <input type="email" placeholder="your@email.com" />
+            <input className="ui-input" type="email" placeholder="your@email.com" />
           </label>
 
           <label className="field-group">
             <span>비밀번호</span>
-            <input type="password" placeholder="8자 이상 입력해주세요" />
+            <input className="ui-input" type="password" placeholder="8자 이상 입력해주세요" />
           </label>
 
           <label className="field-group">
             <span>비밀번호 확인</span>
-            <input type="password" placeholder="비밀번호를 다시 입력해주세요" />
+            <input
+              className="ui-input"
+              type="password"
+              placeholder="비밀번호를 다시 입력해주세요"
+            />
           </label>
 
-          <button type="submit" className="primary-button">
+          <button type="submit" className="ui-button ui-button--primary primary-button">
             회원가입
           </button>
         </form>
@@ -42,11 +46,11 @@ export default function SignUpPage() {
           <span>또는</span>
         </div>
 
-        <button type="button" className="social-button kakao-button">
+        <button type="button" className="ui-button social-button kakao-button">
           카카오로 가입하기
         </button>
 
-        <button type="button" className="social-button apple-button">
+        <button type="button" className="ui-button social-button apple-button">
           Apple로 가입하기
         </button>
 
