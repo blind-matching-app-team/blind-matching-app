@@ -1,4 +1,7 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import ConfirmModal from './ConfirmModal';
+import { confirmationContent } from './feedbackContent';
 import { clearAuthSession } from '../lib/auth';
 
 export type SidebarItemId = 'matching' | 'chat' | 'alerts' | 'mypage';
@@ -24,6 +27,7 @@ export default function SidebarNav({
   unreadTotal = 0,
 }: SidebarNavProps) {
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleNavClick = (itemId: SidebarItemId) => {
     if (itemId === 'matching') {
@@ -86,9 +90,15 @@ export default function SidebarNav({
         </div>
       </div>
 
-      <button type="button" className="sidebar-logout" onClick={handleLogout}>
+      <button type="button" className="sidebar-logout" onClick={() => setShowLogoutConfirm(true)}>
         로그아웃
       </button>
+      <ConfirmModal
+        {...confirmationContent.logout}
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      />
     </aside>
   );
 }

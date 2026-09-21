@@ -1,6 +1,8 @@
 import { http, HttpResponse } from 'msw';
+import { passwordResetHandlers } from './passwordReset';
 
 export const handlers = [
+  ...passwordResetHandlers,
   http.post('/api/v1/matching/queue', () => {
     return HttpResponse.json(
       {

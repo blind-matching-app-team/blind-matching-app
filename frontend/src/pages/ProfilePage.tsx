@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import { clearAuthSession, getUserId } from '../lib/auth';
 
+import ConfirmModal from '../components/ConfirmModal';
+import { confirmationContent, toastMessages } from '../components/feedbackContent';
+import { useToast } from '../components/useToast';
+
 type MenuItem = {
   id: string;
   label: string;
@@ -23,16 +27,11 @@ const menuItems: MenuItem[] = [
 export default function ProfilePage() {
   const navigate = useNavigate();
   const userId = getUserId();
-  const [toast, setToast] = useState('');
+  const showToast = useToast();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const unreadTotal = useMemo(() => 0, []);
-
-  const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 1800);
-  };
 
   const handleMenuClick = (id: string) => {
     if (id === 'profile') {
@@ -61,7 +60,7 @@ export default function ProfilePage() {
     }
 
     if (id === 'history' || id === 'blocked' || id === 'alerts') {
-      showToast('준비 중입니다');
+      showToast(toastMessages.comingSoon);
     }
   };
 
@@ -126,49 +125,18 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {showLogoutConfirm && (
-        <div className="confirm-overlay" onClick={() => setShowLogoutConfirm(false)}>
-          <div className="confirm-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>로그아웃 하시겠어요?</h3>
-            <p>현재 세션이 종료되고 로그인 화면으로 이동합니다.</p>
-            <div className="confirm-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setShowLogoutConfirm(false)}
-              >
-                취소
-              </button>
-              <button type="button" className="primary-button" onClick={handleLogout}>
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeleteConfirm && (
-        <div className="confirm-overlay danger" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="confirm-modal danger" onClick={(event) => event.stopPropagation()}>
-            <h3>회원 탈퇴를 진행할까요?</h3>
-            <p>탈퇴 후 계정과 데이터는 복구할 수 없습니다.</p>
-            <div className="confirm-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                취소
-              </button>
-              <button type="button" className="primary-button danger" onClick={handleDeleteAccount}>
-                탈퇴하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toast && <div className="toast-float">{toast}</div>}
+      <ConfirmModal
+        {...confirmationContent.logout}
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      />
+      <ConfirmModal
+        {...confirmationContent.deleteAccount}
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAccount}
+      />
     </div>
   );
 }
