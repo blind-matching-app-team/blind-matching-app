@@ -6,6 +6,7 @@ import { toastMessages } from '../components/feedbackContent';
 
 import PasswordRules from '../components/PasswordRules';
 import { getPasswordRules } from '../lib/passwordRules';
+import { initialSetupPath } from '../lib/preferences';
 
 type AuthMode = 'login' | 'signup';
 
@@ -156,7 +157,7 @@ export default function AuthPage() {
           return;
         }
 
-        navigate('/');
+        navigate(initialSetupPath(response.data.profileCompleted), { replace: true });
         return;
       }
 

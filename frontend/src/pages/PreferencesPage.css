@@ -1,0 +1,45 @@
+.preferences-card h1 {
+  margin-bottom: 12px;
+}
+.preferences-intro {
+  margin: 0 0 28px;
+  color: #8a7a88;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.preferences-age-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: #8a7a88;
+}
+.preferences-help {
+  color: #8a7a88;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 8px 0 0;
+}
+.preferences-notice {
+  background: #fbf7fa;
+  color: #8a7a88;
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin: 24px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.verification-preview {
+  border-top: 1px solid #eee0e8;
+  margin-top: 24px;
+  padding-top: 16px;
+  font-size: 12px;
+  color: #8a7a88;
+}
+.verification-preview button {
+  padding: 12px 20px;
+  border: 1px solid #eee0e8;
+  border-radius: 20px;
+  background: #fbf7fa;
+  color: #3d2b3a;
+}
