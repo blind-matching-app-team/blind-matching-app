@@ -30,7 +30,7 @@ export default function Modal({ open, labelledBy, describedBy, children }: Modal
   return createPortal(
     <dialog
       ref={ref}
-      className="cm-modal"
+      className="ui-enter cm-modal"
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
       onCancel={(event) => event.preventDefault()}

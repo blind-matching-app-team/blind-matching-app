@@ -2,50 +2,6 @@
   font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #1f2937;
-  background: #f5f5f7;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color-scheme: light;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-body {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #fff7f5 0%, #f4f1ff 100%);
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button,
-input {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-:root {
-  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
   color: #3d2b3a;
   background: #fffafc;
   font-synthesis: none;
@@ -271,23 +227,6 @@ a {
   font-weight: 600;
 }
 
-.chat-empty {
-  min-height: 420px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  text-align: center;
-}
-
-.chat-empty .empty-title {
-  margin: 0;
-  color: #3d2b3a;
-  font-size: 22px;
-  font-weight: 700;
-}
-
 .chat-empty .primary-button.large {
   width: min(100%, 260px);
 }
@@ -381,23 +320,6 @@ a {
   background: #ed93b1;
   align-self: center;
   flex-shrink: 0;
-}
-
-.notification-empty {
-  min-height: 420px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  text-align: center;
-}
-
-.notification-empty .empty-title {
-  margin: 0;
-  color: #3d2b3a;
-  font-size: 22px;
-  font-weight: 700;
 }
 
 .profile-main {
@@ -763,31 +685,11 @@ a {
   text-align: right;
 }
 
-.primary-button,
-.secondary-button {
-  width: 100%;
-  border: none;
-  border-radius: 999px;
-  font-size: 16px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.primary-button {
-  background: #ed93b1;
-  color: #4b1528;
-  min-height: 52px;
-}
-
 .primary-button.large {
   min-height: 54px;
 }
 
 .secondary-button {
-  background: #fbf7fa;
-  color: #8a7a88;
   min-height: 48px;
   width: min(100%, 280px);
 }
@@ -866,7 +768,6 @@ a {
   border-radius: 28px;
   box-shadow: 0 20px 45px rgba(93, 67, 82, 0.08);
   padding: 28px 20px 20px;
-  transition: height 0.2s ease;
 }
 
 .logo-badge {
@@ -903,7 +804,6 @@ a {
   border-radius: 999px;
   height: 40px;
   font-weight: 500;
-  transition: all 0.2s ease;
 }
 
 .auth-tab.active {
@@ -933,26 +833,6 @@ a {
   gap: 6px;
 }
 
-.field-group input {
-  width: 100%;
-  height: 48px;
-  border-radius: 20px;
-  border: 1px solid #eee0e8;
-  background: #fff;
-  padding: 0 16px;
-  color: #3d2b3a;
-  font-size: 14px;
-  outline: none;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.field-group input:focus {
-  border-color: #ed93b1;
-  box-shadow: 0 0 0 3px rgba(237, 147, 177, 0.12);
-}
-
 .field-group.has-error input,
 .password-input-wrapper input[aria-invalid='true'] {
   border-color: #a32d2d;
@@ -976,21 +856,8 @@ a {
   position: relative;
 }
 
-.password-input-wrapper input {
-  width: 100%;
-  height: 48px;
-  border-radius: 20px;
-  border: 1px solid #eee0e8;
-  background: #fff;
-  padding: 0 56px 0 16px;
-  color: #3d2b3a;
-  font-size: 14px;
-  outline: none;
-}
-
-.password-input-wrapper input:focus {
-  border-color: #ed93b1;
-  box-shadow: 0 0 0 3px rgba(237, 147, 177, 0.12);
+.password-input-wrapper .ui-input {
+  padding-right: 56px;
 }
 
 .password-toggle {
@@ -1067,33 +934,7 @@ a {
 }
 
 .submit-button {
-  width: 100%;
-  min-height: 52px;
   height: 52px;
-  border: none;
-  border-radius: 999px;
-  background: #ed93b1;
-  color: #4b1528;
-  font-size: 16px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    opacity 0.2s ease,
-    transform 0.15s ease;
-  transform: none;
-}
-
-.submit-button:hover,
-.submit-button:focus-visible,
-.submit-button:active {
-  transform: none;
-}
-
-.submit-button:disabled {
-  opacity: 0.7;
-  cursor: wait;
 }
 
 .spinner {
@@ -1138,10 +979,8 @@ a {
 }
 
 .social-button {
-  width: 100%;
+  min-height: 48px;
   height: 48px;
-  border: none;
-  border-radius: 999px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -1243,15 +1082,8 @@ a {
 }
 
 .submit-button.is-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 48px;
-  border-radius: 999px;
   background: #fbf7fa;
   color: #8a7a88;
-  text-decoration: none;
 }
 
 @media (max-width: 480px) {

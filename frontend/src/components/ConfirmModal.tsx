@@ -39,12 +39,16 @@ export default function ConfirmModal({
         </p>
       )}
       <div className="cm-actions">
-        <button type="button" className="cm-cancel" onClick={onClose}>
+        <button
+          type="button"
+          className="ui-button ui-button--secondary cm-cancel"
+          onClick={onClose}
+        >
           {cancelLabel}
         </button>
         <button
           type="button"
-          className={`cm-confirm cm-confirm--${variant}`}
+          className={`ui-button cm-confirm cm-confirm--${variant}`}
           onClick={() => {
             onConfirm();
             onClose();

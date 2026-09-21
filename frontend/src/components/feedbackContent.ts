@@ -1,6 +1,12 @@
 import type { ConfirmModalContent } from './ConfirmModal';
 
 export const confirmationContent = {
+  leaveChat: {
+    title: '채팅방을 나가시겠어요?',
+    description: '나가면 채팅목록에서 이 대화가 사라져요.',
+    confirmLabel: '나가기',
+    variant: 'danger',
+  },
   logout: { title: '로그아웃 하시겠어요?', confirmLabel: '로그아웃', variant: 'normal' },
   deleteAccount: {
     title: '정말 탈퇴하시겠어요?',

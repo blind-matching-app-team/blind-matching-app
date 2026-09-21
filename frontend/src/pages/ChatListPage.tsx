@@ -1,83 +1,45 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
-
-type ChatRoom = {
-  id: number;
-  partnerName: string;
-  lastMessage: string;
-  lastSeenAt: string;
-  unreadCount: number;
-  isClosed: boolean;
-  revealStage: number;
-  isOnline?: boolean;
-};
-
-const chatRooms: ChatRoom[] = [
-  {
-    id: 1,
-    partnerName: '김서윤',
-    lastMessage: '오늘 저녁에 시간 괜찮으세요?',
-    lastSeenAt: '오전 9:48',
-    unreadCount: 3,
-    isClosed: false,
-    revealStage: 2,
-    isOnline: true,
-  },
-  {
-    id: 2,
-    partnerName: '박지훈',
-    lastMessage: '추천 장소를 보냈어요.',
-    lastSeenAt: '어제',
-    unreadCount: 0,
-    isClosed: false,
-    revealStage: 4,
-    isOnline: false,
-  },
-  {
-    id: 3,
-    partnerName: '이도윤',
-    lastMessage: '매칭이 종료된 대화입니다.',
-    lastSeenAt: '2일 전',
-    unreadCount: 0,
-    isClosed: true,
-    revealStage: 5,
-  },
-];
+import { leaveRoom, useChatStore } from '../lib/chatStore';
+import ConfirmModal from '../components/ConfirmModal';
+import { confirmationContent } from '../components/feedbackContent';
+import { chatAction } from '../api/chat';
+import { useToast } from '../components/useToast';
 
 export default function ChatListPage() {
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState(chatRooms);
-
-  const unreadTotal = useMemo(
-    () => rooms.reduce((sum, room) => sum + room.unreadCount, 0),
-    [rooms],
-  );
-
+  const { rooms } = useChatStore();
+  const [leaving, setLeaving] = useState<number | null>(null);
+  const toast = useToast();
   const handleOpenRoom = (roomId: number) => {
     navigate(`/chat/${roomId}`);
   };
 
   const handleLeaveRoom = (roomId: number) => {
-    setRooms((prev) => prev.filter((room) => room.id !== roomId));
+    setLeaving(roomId);
   };
 
   return (
     <div className="hub-shell chat-shell">
-      <SidebarNav activeItem="chat" unreadTotal={unreadTotal} />
+      <SidebarNav activeItem="chat" />
 
-      <main className="hub-main chat-main">
+      <main className="ui-enter hub-main chat-main">
         <header className="chat-header">
           <h1>채팅목록</h1>
         </header>
 
         {rooms.length === 0 ? (
-          <section className="chat-empty">
+          <section className="ui-empty chat-empty">
             <div className="empty-icon" aria-hidden="true">
               <span>💬</span>
             </div>
             <p className="empty-title">아직 대화 중인 상대가 없어요</p>
-            <button type="button" className="primary-button large" onClick={() => navigate('/')}>
+            <button
+              type="button"
+              className="ui-button ui-button--primary primary-button large"
+              onClick={() => navigate('/')}
+            >
               매칭 시작하기
             </button>
           </section>
@@ -87,7 +49,7 @@ export default function ChatListPage() {
               <article key={room.id} className="chat-room-item">
                 <button
                   type="button"
-                  className="chat-room-main"
+                  className="ui-interactive chat-room-main"
                   onClick={() => handleOpenRoom(room.id)}
                 >
                   <div className="chat-avatar" aria-hidden="true">
@@ -116,7 +78,7 @@ export default function ChatListPage() {
 
                 <button
                   type="button"
-                  className="leave-room-button"
+                  className="ui-interactive leave-room-button"
                   onClick={() => handleLeaveRoom(room.id)}
                   aria-label={`${room.partnerName} 나가기`}
                 >
@@ -127,6 +89,18 @@ export default function ChatListPage() {
           </section>
         )}
       </main>
+      <ConfirmModal
+        {...confirmationContent.leaveChat}
+        open={leaving !== null}
+        onClose={() => setLeaving(null)}
+        onConfirm={() => {
+          if (leaving === null) return;
+          const roomId = leaving;
+          void chatAction(roomId, 'leave')
+            .then(() => leaveRoom(roomId))
+            .catch((error: Error) => toast(error.message));
+        }}
+      />
     </div>
   );
 }

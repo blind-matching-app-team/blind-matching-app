@@ -1,0 +1,226 @@
+.conversation-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.conversation-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fffafc;
+}
+.conversation-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 28px;
+  border-bottom: 1px solid #eee0e8;
+  background: #fff;
+}
+.conversation-icon {
+  border: 0;
+  background: transparent;
+  color: #6a5b67;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-size: 28px;
+  border-radius: 12px;
+}
+.conversation-partner {
+  flex: 1;
+  min-width: 0;
+}
+.conversation-partner h1 {
+  font-size: 18px;
+  margin: 0;
+}
+.conversation-partner span {
+  font-size: 12px;
+  color: #8a7a88;
+}
+.conversation-menu-wrap {
+  position: relative;
+}
+.conversation-menu {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 172px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #eee0e8;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px #3d2b3a18;
+  z-index: 2;
+}
+.conversation-menu button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  color: #993556;
+}
+.conversation-menu button:hover {
+  background: #fff0f5;
+}
+.reveal-mini {
+  padding: 12px 28px;
+  background: #fbf3f7;
+  gap: 6px;
+}
+.reveal-mini .reveal-track {
+  height: 6px;
+}
+.reveal-mini .reveal-percent {
+  font-size: 12px;
+  text-align: left;
+}
+.conversation-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 28px;
+}
+.conversation-notice,
+.conversation-date {
+  text-align: center;
+  color: #8a7a88;
+  font-size: 12px;
+  margin: 8px 0 24px;
+}
+.conversation-date {
+  margin: 20px 0;
+}
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.message-row--mine {
+  flex-direction: row-reverse;
+}
+.message-bubble {
+  max-width: min(75%, 520px);
+  background: #fff;
+  border: 1px solid #eee0e8;
+  border-radius: 18px 18px 18px 4px;
+  padding: 12px 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.message-row--mine .message-bubble {
+  background: #fbeaf0;
+  border-color: #f0c9d8;
+  border-radius: 18px 18px 4px 18px;
+}
+.message-row time {
+  font-size: 10px;
+  color: #8a7a88;
+  flex-shrink: 0;
+}
+.message-row time span {
+  display: block;
+  text-align: right;
+}
+.conversation-composer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px max(16px, env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1px solid #eee0e8;
+}
+.conversation-composer textarea,
+.report-form textarea {
+  min-width: 0;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  padding: 12px;
+  border: 1px solid #eee0e8;
+  border-radius: 16px;
+  background: #fffafc;
+  color: #3d2b3a;
+}
+.conversation-composer textarea {
+  flex: 1;
+  max-height: 140px;
+}
+.conversation-composer .ui-button {
+  width: 76px;
+  flex-shrink: 0;
+}
+.conversation-error {
+  color: #a32d2d;
+  margin: 8px 28px;
+  font-size: 13px;
+}
+.conversation-error button {
+  margin-left: 8px;
+}
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.report-form fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  margin: 8px 0;
+  border: 0;
+}
+.report-form legend {
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.report-form label {
+  font-size: 13px;
+}
+.report-form input {
+  accent-color: #993556;
+  margin-right: 8px;
+}
+.report-form textarea {
+  min-height: 100px;
+}
+.report-count {
+  text-align: right;
+  font-size: 12px;
+  color: #8a7a88;
+}
+@media (max-width: 860px) {
+  .conversation-shell > .mobile-nav-header {
+    flex-shrink: 0;
+  }
+  .conversation-header {
+    padding: 12px;
+    gap: 8px;
+  }
+  .conversation-messages,
+  .reveal-mini {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .conversation-composer {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 8px;
+  }
+  .conversation-composer textarea {
+    font-size: 16px;
+  }
+}

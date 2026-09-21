@@ -15,7 +15,7 @@ function Toast({ message, onDismiss }: { message: string; onDismiss: () => void 
     <div
       ref={ref}
       popover="manual"
-      className="cm-toast"
+      className="ui-enter cm-toast"
       role="status"
       aria-live="polite"
       aria-atomic="true"

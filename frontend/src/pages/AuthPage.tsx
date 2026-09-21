@@ -215,7 +215,7 @@ export default function AuthPage() {
 
   return (
     <div className="auth-page-shell">
-      <div className="auth-card">
+      <div className="ui-enter auth-card">
         <div className="logo-badge" aria-label="Blind Matching logo">
           <span>B</span>
         </div>
@@ -225,7 +225,9 @@ export default function AuthPage() {
             type="button"
             role="tab"
             aria-selected={mode === 'login'}
-            className={mode === 'login' ? 'auth-tab active' : 'auth-tab'}
+            className={
+              mode === 'login' ? 'ui-interactive auth-tab active' : 'ui-interactive auth-tab'
+            }
             onClick={() => handleModeChange('login')}
           >
             로그인
@@ -234,7 +236,9 @@ export default function AuthPage() {
             type="button"
             role="tab"
             aria-selected={mode === 'signup'}
-            className={mode === 'signup' ? 'auth-tab active' : 'auth-tab'}
+            className={
+              mode === 'signup' ? 'ui-interactive auth-tab active' : 'ui-interactive auth-tab'
+            }
             onClick={() => handleModeChange('signup')}
           >
             회원가입
@@ -246,6 +250,7 @@ export default function AuthPage() {
         <form className={passwordLineClass} onSubmit={handleSubmit} noValidate>
           <label className={`field-group ${emailError ? 'has-error' : ''}`}>
             <input
+              className="ui-input"
               type="email"
               value={email}
               placeholder="name@example.com"
@@ -263,6 +268,7 @@ export default function AuthPage() {
             <label className="field-group">
               <div className="password-input-wrapper">
                 <input
+                  className="ui-input"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   placeholder="비밀번호"
@@ -275,7 +281,7 @@ export default function AuthPage() {
                 />
                 <button
                   type="button"
-                  className="password-toggle"
+                  className="ui-interactive password-toggle"
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 표시'}
                 >
@@ -291,6 +297,7 @@ export default function AuthPage() {
                 <label className="field-group">
                   <div className="password-input-wrapper">
                     <input
+                      className="ui-input"
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       placeholder="비밀번호 확인"
@@ -300,7 +307,7 @@ export default function AuthPage() {
                     />
                     <button
                       type="button"
-                      className="password-toggle"
+                      className="ui-interactive password-toggle"
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
                       aria-label={
                         showConfirmPassword ? '비밀번호 확인 숨기기' : '비밀번호 확인 표시'
@@ -339,7 +346,11 @@ export default function AuthPage() {
 
           {termsError && <span className="field-message error terms-message">{termsError}</span>}
 
-          <button type="submit" className="submit-button" disabled={loading}>
+          <button
+            type="submit"
+            className="ui-button ui-button--primary submit-button"
+            disabled={loading}
+          >
             {loading ? (
               <span className="spinner" aria-label="로딩 중" />
             ) : mode === 'login' ? (
@@ -351,7 +362,7 @@ export default function AuthPage() {
         </form>
 
         {mode === 'login' && (
-          <Link className="text-link forgot-password-link" to="/forgot-password">
+          <Link className="ui-interactive text-link forgot-password-link" to="/forgot-password">
             비밀번호를 잊으셨나요?
           </Link>
         )}
@@ -365,21 +376,21 @@ export default function AuthPage() {
         <div className="social-stack">
           <button
             type="button"
-            className="social-button kakao"
+            className="ui-button social-button kakao"
             onClick={() => handleSocialClick('카카오')}
           >
             카카오로 계속하기
           </button>
           <button
             type="button"
-            className="social-button naver"
+            className="ui-button social-button naver"
             onClick={() => handleSocialClick('네이버')}
           >
             네이버로 계속하기
           </button>
           <button
             type="button"
-            className="social-button google"
+            className="ui-button social-button google"
             onClick={() => handleSocialClick('구글')}
           >
             구글로 계속하기
@@ -390,7 +401,7 @@ export default function AuthPage() {
           {mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
           <button
             type="button"
-            className="text-link"
+            className="ui-interactive text-link"
             onClick={() => handleModeChange(mode === 'login' ? 'signup' : 'login')}
           >
             {mode === 'login' ? '회원가입' : '로그인'}
@@ -398,7 +409,11 @@ export default function AuthPage() {
         </div>
 
         {import.meta.env.DEV && (
-          <button type="button" className="dev-login-button" onClick={handleDevBypassLogin}>
+          <button
+            type="button"
+            className="ui-interactive dev-login-button"
+            onClick={handleDevBypassLogin}
+          >
             개발용 임시 로그인
           </button>
         )}

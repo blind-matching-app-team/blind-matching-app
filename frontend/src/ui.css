@@ -1,0 +1,124 @@
+:root {
+  --ui-primary-bg: #ed93b1;
+  --ui-primary-text: #4b1528;
+  --ui-motion-fast: 160ms;
+  --ui-motion-enter: 220ms;
+  --ui-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ui-button {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ui-button--primary {
+  background: var(--ui-primary-bg);
+  color: var(--ui-primary-text);
+}
+
+.ui-button--secondary {
+  background: #fbf7fa;
+  color: #8a7a88;
+}
+
+.ui-button,
+.ui-interactive {
+  transition:
+    translate var(--ui-motion-fast) var(--ui-motion-ease),
+    opacity var(--ui-motion-fast) ease,
+    background-color var(--ui-motion-fast) ease,
+    color var(--ui-motion-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.ui-button, .ui-interactive):not(:disabled, [aria-disabled='true']):hover {
+    translate: 0 -5px;
+  }
+}
+
+:is(.ui-button, .ui-interactive):not(:disabled, [aria-disabled='true']):active {
+  translate: 0 5px;
+}
+
+:is(.ui-button, .ui-interactive):focus-visible {
+  outline: 2px solid #993556;
+  outline-offset: 3px;
+}
+
+:is(.ui-button, .ui-interactive):is(:disabled, [aria-disabled='true']) {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ui-input {
+  width: 100%;
+  height: 48px;
+  border-radius: 20px;
+  border: 1px solid #eee0e8;
+  background: #fff;
+  padding: 0 16px;
+  color: #3d2b3a;
+  font-size: 14px;
+  transition:
+    border-color var(--ui-motion-fast) ease,
+    box-shadow var(--ui-motion-fast) ease;
+}
+
+.ui-input:focus {
+  outline: none;
+  border-color: var(--ui-primary-bg);
+  box-shadow: 0 0 0 3px rgb(237 147 177 / 12%);
+}
+
+.ui-empty {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.ui-empty .empty-title {
+  font-size: 22px;
+}
+
+/* Individual translate preserves password-toggle and toast positioning transforms. */
+.ui-enter:not(dialog),
+dialog.ui-enter[open] {
+  animation: ui-enter var(--ui-motion-enter) var(--ui-motion-ease);
+}
+
+@keyframes ui-enter {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-button,
+  .ui-interactive,
+  .ui-input {
+    transition: none;
+    translate: none !important;
+  }
+
+  .ui-enter:not(dialog),
+  dialog.ui-enter[open],
+  .spinner {
+    animation: none;
+  }
+}

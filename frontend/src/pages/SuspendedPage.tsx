@@ -21,7 +21,7 @@ export default function SuspendedPage() {
 
   return (
     <div className="auth-page-shell">
-      <div className="auth-card suspended-card">
+      <div className="ui-enter auth-card suspended-card">
         <div className="suspended-icon" aria-label="이용 제한 상태 아이콘">
           {icon}
         </div>
@@ -36,7 +36,7 @@ export default function SuspendedPage() {
         <p className="suspended-contact">문의가 필요하면 고객센터로 연락해주세요</p>
 
         <div className="suspended-actions">
-          <Link to="/login" className="submit-button is-link">
+          <Link to="/login" className="ui-button ui-button--primary submit-button is-link">
             확인
           </Link>
         </div>

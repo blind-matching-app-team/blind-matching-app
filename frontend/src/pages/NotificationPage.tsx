@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { markNotificationsRead, useChatStore } from '../lib/chatStore';
 import { useNavigate } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 
@@ -57,18 +57,15 @@ const typeMeta: Record<NotificationType, { iconBg: string; icon: string; route: 
 
 export default function NotificationPage() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState(initialNotifications);
-
-  const unreadTotal = useMemo(
-    () => notifications.filter((item) => item.unread).length,
-    [notifications],
-  );
-
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
-  };
+  const { readNotifications } = useChatStore();
+  const notifications = initialNotifications.map((item) => ({
+    ...item,
+    unread: item.unread && !readNotifications.includes(item.id),
+  }));
+  const markAllRead = () => markNotificationsRead(initialNotifications.map((item) => item.id));
 
   const handleNotificationClick = (item: NotificationItem) => {
+    markNotificationsRead([item.id]);
     if (item.type === 'verification') {
       navigate('/');
       return;
@@ -93,23 +90,27 @@ export default function NotificationPage() {
 
   return (
     <div className="hub-shell chat-shell">
-      <SidebarNav activeItem="alerts" unreadTotal={unreadTotal} />
+      <SidebarNav activeItem="alerts" />
 
-      <main className="hub-main notification-main">
+      <main className="ui-enter hub-main notification-main">
         <header className="notification-header">
           <h1>알림</h1>
-          <button type="button" className="link-button" onClick={markAllRead}>
+          <button type="button" className="ui-interactive link-button" onClick={markAllRead}>
             전체 읽음
           </button>
         </header>
 
         {notifications.length === 0 ? (
-          <section className="notification-empty">
+          <section className="ui-empty notification-empty">
             <div className="empty-icon" aria-hidden="true">
               <span>🔔</span>
             </div>
             <p className="empty-title">아직 알림이 없어요</p>
-            <button type="button" className="primary-button large" onClick={handleEmptyAction}>
+            <button
+              type="button"
+              className="ui-button ui-button--primary primary-button large"
+              onClick={handleEmptyAction}
+            >
               매칭 시작하기
             </button>
           </section>
@@ -122,7 +123,7 @@ export default function NotificationPage() {
                 <button
                   key={item.id}
                   type="button"
-                  className="notification-item"
+                  className="ui-interactive notification-item"
                   onClick={() => handleNotificationClick(item)}
                 >
                   <span className="notification-icon" style={{ background: meta.iconBg }}>

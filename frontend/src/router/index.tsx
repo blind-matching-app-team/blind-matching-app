@@ -3,6 +3,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import AuthPage from '../pages/AuthPage';
 import ChatListPage from '../pages/ChatListPage';
+import ChatPage from '../pages/ChatPage';
 import HomePage from '../pages/HomePage';
 import NotificationPage from '../pages/NotificationPage';
 import ProfilePage from '../pages/ProfilePage';
@@ -17,7 +18,7 @@ const router = createBrowserRouter([
     element: <PasswordResetPage />,
     hydrateFallbackElement: (
       <main className="auth-page-shell">
-        <div className="auth-card" role="status">
+        <div className="ui-enter auth-card" role="status">
           재설정 링크를 확인하고 있어요…
         </div>
       </main>
@@ -36,7 +37,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/chat/:id',
-        element: <div style={{ padding: 32 }}>채팅 화면 (S11)</div>,
+        element: <ChatPage />,
       },
       {
         path: '/matching/waiting',
