@@ -1,3 +1,4 @@
+import { passwordResetLoader } from './passwordResetLoader';
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import AuthPage from '../pages/AuthPage';
@@ -6,8 +7,22 @@ import HomePage from '../pages/HomePage';
 import NotificationPage from '../pages/NotificationPage';
 import ProfilePage from '../pages/ProfilePage';
 import SuspendedPage from '../pages/SuspendedPage';
+import PasswordResetPage, { ForgotPasswordPage } from '../pages/PasswordResetPage';
 
 const router = createBrowserRouter([
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  {
+    path: '/reset-password',
+    loader: passwordResetLoader,
+    element: <PasswordResetPage />,
+    hydrateFallbackElement: (
+      <main className="auth-page-shell">
+        <div className="auth-card" role="status">
+          재설정 링크를 확인하고 있어요…
+        </div>
+      </main>
+    ),
+  },
   {
     element: <ProtectedRoute />,
     children: [

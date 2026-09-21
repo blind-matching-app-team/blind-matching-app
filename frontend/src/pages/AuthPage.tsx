@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { loginApi, signupApi } from '../api/auth';
+import { useToast } from '../components/useToast';
+import { toastMessages } from '../components/feedbackContent';
+
+import PasswordRules from '../components/PasswordRules';
+import { getPasswordRules } from '../lib/passwordRules';
 
 type AuthMode = 'login' | 'signup';
 
@@ -22,31 +27,11 @@ export default function AuthPage() {
   const [confirmError, setConfirmError] = useState('');
   const [termsError, setTermsError] = useState('');
   const [bannerError, setBannerError] = useState('');
-  const [toastMessage, setToastMessage] = useState('');
+  const showToast = useToast();
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-  const passwordRules = useMemo(() => {
-    const minLength = password.length >= 8;
-    const hasLetter = /[A-Za-z]/.test(password);
-    const hasNumber = /\d/.test(password);
-
-    return {
-      minLength,
-      hasLetter,
-      hasNumber,
-      valid: minLength && hasLetter && hasNumber,
-    };
-  }, [password]);
-
-  useEffect(() => {
-    if (!toastMessage) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => setToastMessage(''), 2500);
-    return () => window.clearTimeout(timer);
-  }, [toastMessage]);
+  const passwordRules = getPasswordRules(password);
 
   const handleModeChange = (nextMode: AuthMode) => {
     navigate(nextMode === 'login' ? '/login' : '/signup');
@@ -210,7 +195,7 @@ export default function AuthPage() {
   };
 
   const handleSocialClick = (provider: ProviderName) => {
-    setToastMessage('로그인이 취소됐어요');
+    showToast(toastMessages.loginCancelled);
     console.log(`${provider} OAuth click`);
   };
 
@@ -223,7 +208,7 @@ export default function AuthPage() {
 
   const handleTermsClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    setToastMessage('준비 중입니다');
+    showToast(toastMessages.comingSoon);
   };
 
   const passwordLineClass = mode === 'signup' ? 'auth-form signup-form' : 'auth-form login-form';
@@ -328,20 +313,7 @@ export default function AuthPage() {
                 </label>
               </div>
 
-              <div className="rule-box">
-                <div className={`rule-item ${passwordRules.minLength ? 'done' : ''}`}>
-                  <span className="rule-bullet">{passwordRules.minLength ? '✓' : '·'}</span>
-                  <span>8자 이상</span>
-                </div>
-                <div className={`rule-item ${passwordRules.hasLetter ? 'done' : ''}`}>
-                  <span className="rule-bullet">{passwordRules.hasLetter ? '✓' : '·'}</span>
-                  <span>영문 포함</span>
-                </div>
-                <div className={`rule-item ${passwordRules.hasNumber ? 'done' : ''}`}>
-                  <span className="rule-bullet">{passwordRules.hasNumber ? '✓' : '·'}</span>
-                  <span>숫자 포함</span>
-                </div>
-              </div>
+              <PasswordRules password={password} />
             </>
           )}
 
@@ -378,6 +350,12 @@ export default function AuthPage() {
           </button>
         </form>
 
+        {mode === 'login' && (
+          <Link className="text-link forgot-password-link" to="/forgot-password">
+            비밀번호를 잊으셨나요?
+          </Link>
+        )}
+
         <div className="divider-wrap" aria-hidden="true">
           <span className="divider-line" />
           <span className="divider-text">또는</span>
@@ -407,8 +385,6 @@ export default function AuthPage() {
             구글로 계속하기
           </button>
         </div>
-
-        {toastMessage && <div className="toast">{toastMessage}</div>}
 
         <div className="auth-footer">
           {mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}

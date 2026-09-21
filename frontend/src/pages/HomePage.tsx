@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import { getUserId } from '../lib/auth';
+import ConfirmModal from '../components/ConfirmModal';
+import { confirmationContent } from '../components/feedbackContent';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const [showRematchConfirm, setShowRematchConfirm] = useState(false);
   const userId = getUserId();
   const [matchState, setMatchState] = useState<'match' | 'empty'>('match');
 
@@ -77,7 +80,11 @@ export default function HomePage() {
             </div>
 
             <div className="action-row">
-              <button type="button" className="secondary-button" onClick={handleStartMatching}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowRematchConfirm(true)}
+              >
                 재매칭하기
               </button>
             </div>
@@ -95,6 +102,12 @@ export default function HomePage() {
           </section>
         )}
       </main>
+      <ConfirmModal
+        {...confirmationContent.rematch}
+        open={showRematchConfirm}
+        onClose={() => setShowRematchConfirm(false)}
+        onConfirm={handleStartMatching}
+      />
     </div>
   );
 }
