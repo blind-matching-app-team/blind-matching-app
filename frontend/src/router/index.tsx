@@ -7,6 +7,8 @@ import ChatPage from '../pages/ChatPage';
 import HomePage from '../pages/HomePage';
 import NotificationPage from '../pages/NotificationPage';
 import ProfilePage from '../pages/ProfilePage';
+import PreferencesPage, { IdentityVerificationPage } from '../pages/PreferencesPage';
+import ProfileSetupPage, { OnboardingConnectionPage } from '../pages/ProfileSetupPage';
 import SuspendedPage from '../pages/SuspendedPage';
 import PasswordResetPage, { ForgotPasswordPage } from '../pages/PasswordResetPage';
 
@@ -53,12 +55,14 @@ const router = createBrowserRouter([
       },
       {
         path: '/profile/edit',
-        element: <div style={{ padding: 32 }}>프로필 수정 화면 (S3)</div>,
+        element: <ProfileSetupPage />,
       },
+      { path: '/onboarding', element: <OnboardingConnectionPage /> },
       {
         path: '/profile/preferences',
-        element: <div style={{ padding: 32 }}>매칭 선호조건 화면 (S4)</div>,
+        element: <PreferencesPage />,
       },
+      { path: '/identity-verification', element: <IdentityVerificationPage /> },
     ],
   },
   {

@@ -1,0 +1,271 @@
+.profile-setup-shell {
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: #fbf7fa;
+  color: #3d2b3a;
+}
+.profile-setup-card {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px;
+  border: 1px solid #eee0e8;
+  border-radius: 28px;
+  background: #fff;
+}
+.profile-setup-card h1 {
+  margin: 0 0 28px;
+  font-size: 20px;
+  font-weight: 500;
+}
+.profile-setup-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.profile-photo-area {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.profile-photo-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  margin: 0 auto 16px;
+  border: 0;
+  border-radius: 50%;
+  background: #9fe1cb;
+  color: #377863;
+}
+.profile-photo-button img {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.profile-photo-badge {
+  position: absolute;
+  bottom: -3px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #fbf7fa;
+  color: #8a7a88;
+  font-size: 12px;
+}
+.profile-photo-format {
+  font-size: 11px;
+  color: #8a7a88;
+}
+.profile-photo-notice {
+  color: #8a7a88;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.profile-photo-notice strong {
+  font-weight: 500;
+}
+.profile-photo-notice ul {
+  padding: 0;
+  margin: 6px 0 0;
+  list-style: none;
+}
+.profile-photo-notice li::before {
+  content: '· ';
+}
+.profile-setup-field {
+  margin-top: 20px;
+}
+.profile-setup-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #8a7a88;
+}
+.profile-setup-field input,
+.profile-setup-field select,
+.profile-setup-field textarea {
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid #eee0e8;
+  border-radius: 20px;
+  background: white;
+  color: #3d2b3a;
+  font: inherit;
+  font-size: 14px;
+}
+.profile-setup-field input::placeholder {
+  color: #8a7a88;
+}
+.profile-setup-card :is(input, select, textarea, button, a):focus-visible {
+  outline: 2px solid #b84c75;
+  outline-offset: 3px;
+}
+.profile-setup-field [aria-invalid='true'] {
+  border-color: #b43659;
+}
+.profile-region-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.profile-height-input {
+  position: relative;
+}
+.profile-height-input input {
+  padding-right: 48px;
+}
+.profile-height-input span {
+  position: absolute;
+  right: 18px;
+  top: 13px;
+  color: #8a7a88;
+  font-size: 14px;
+}
+.profile-field-hint {
+  margin: 5px 4px 0;
+  text-align: right;
+  color: #8a7a88;
+  font-size: 12px;
+}
+.profile-setup-error {
+  margin: 8px 0;
+  color: #b43659;
+  font-size: 12px;
+}
+.profile-setup-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
+  margin-top: 32px;
+}
+.profile-setup-actions button {
+  height: 52px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 14px;
+}
+.profile-previous {
+  background: #fbf7fa;
+  color: #8a7a88;
+}
+.profile-save {
+  background: #ed93b1;
+  color: #4b1528;
+}
+.profile-setup-card :disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.profile-lifestyle {
+  margin-top: 24px;
+  min-height: 260px;
+}
+.profile-step-progress p {
+  font-size: 13px;
+  color: #8a7a88;
+}
+.profile-step-progress progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fbf7fa;
+  accent-color: #ed93b1;
+}
+.profile-step-progress progress::-webkit-progress-bar {
+  background: #fbf7fa;
+}
+.profile-step-progress progress::-webkit-progress-value {
+  background: #ed93b1;
+}
+.profile-step-progress progress::-moz-progress-bar {
+  background: #ed93b1;
+}
+.profile-step-skip {
+  display: block;
+  margin: 18px auto 0;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: #8a7a88;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.profile-lifestyle h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.profile-lifestyle-description {
+  color: #8a7a88;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.profile-hobbies {
+  min-width: 0;
+  margin: 24px 0 0;
+  padding: 0;
+  border: 0;
+}
+.profile-hobbies legend {
+  font-size: 13px;
+  color: #8a7a88;
+}
+.profile-hobbies > p {
+  font-size: 12px;
+  color: #8a7a88;
+}
+.profile-hobby-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.profile-hobby-options button {
+  border: 1px solid #eee0e8;
+  border-radius: 999px;
+  background: #fff;
+  color: #685363;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+.profile-hobby-options button[aria-pressed='true'] {
+  background: #fce6ee;
+  border-color: #ed93b1;
+  color: #4b1528;
+}
+.profile-setup-field textarea {
+  display: block;
+  height: auto;
+  min-height: 96px;
+  resize: vertical;
+  padding: 14px 16px;
+  line-height: 1.6;
+}
+.profile-setup-field textarea::placeholder {
+  color: #8a7a88;
+}
+@media (max-width: 520px) {
+  .profile-setup-shell {
+    padding: 16px 12px;
+  }
+  .profile-setup-card {
+    padding: 24px 20px;
+    border-radius: 24px;
+  }
+}
