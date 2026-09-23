@@ -20,7 +20,7 @@ tg() { echo "$J" | grep -oE '"target":\{[^}]*\}' | head -1 | grep -oE "\"$1\":(\
 check() { if [ "$3" = true ]; then PASS=$((PASS+1)); echo "  ✔ $1"; else FAIL=$((FAIL+1)); echo "  ✘ $1  [http=$CODE] $(echo "$J" | head -c 400)"; fi; }
 skip() { SKIP=$((SKIP+1)); echo "  ⊘ $1 (건너뜀: $2)"; }
 step() { echo "[$1]"; }
-mk() { local n=$1 g=$2 y=$3 r=$4; local e="bma76-$n-$TS@example.com"; eval "EMAIL_$n=$e"
+mk() { local n=$1 g=$2 y=$3 r=$4; local e; e=$(printf %s "bma76-$n-$TS@example.com" | tr "A-Z" "a-z"); eval "EMAIL_$n=$e"
   req POST /api/v1/auth/signup "" "{\"email\":\"$e\",\"password\":\"$PW\"}"; eval "USER_$n=$(field userId)"
   req POST /api/v1/auth/login "" "{\"email\":\"$e\",\"password\":\"$PW\"}"; local t; t=$(field accessToken); eval "TOK_$n=$t"; eval "RT_$n=$(field refreshToken)"
   req PUT /api/v1/users/me/profile "$t" "{\"nickname\":\"검토$n$N\",\"birthDate\":\"$y-05-05\",\"genderCode\":\"$g\",\"regionCode\":\"$r\"}"; }
@@ -39,7 +39,7 @@ check "관리자 목록 200, 일반 사용자 403 AUTH_005" "" "$([ "$C1" = 200 
 step "2. R1 이 T 를 사기(FRAUD) 신고 → 즉시검토 대기 → T 새 매칭(좋아요) 409 MATCH_007 → 대기 목록에 노출(신고자·피신고자·누적 0)"
 mk R1 M 1990 SEOUL_GANGNAM; report "$TOK_R1" "$USER_T" FRAUD "돈을 요구했어요"; REP1=$(field reportId); S1=$(field status)
 req POST /api/v1/matching/actions "$TOK_T" "{\"targetUserId\":$USER_R1,\"actionType\":\"LIKE\"}"; C1=$CODE; R1C=$(field code)
-req GET "$A/reports?status=PENDING&size=50" "$TOK_ADM"; ITEM=$(echo "$J" | perl -ne 'print $1 if /("reportId":'"$REP1"',.*?)(?:\{"reportId"|$)/')
+req GET "$A/reports?status=PENDING&size=50" "$TOK_ADM"; ITEM=$(echo "$J" | perl -ne 'print $1 if /("reportId":'"$REP1"',.*?)(?:\{"reportId"|\z)/')
 check "PENDING_REVIEW, T 좋아요 409 MATCH_007, 목록에 reportId·immediateReview true·reporter email R1·target reportCount 0·activeSanction null" "" "$([ "$S1" = PENDING_REVIEW ] && [ "$C1" = 409 ] && [ "$R1C" = MATCH_007 ] && [ "$CODE" = 200 ] && echo "$ITEM" | grep -q '"immediateReview":true' && echo "$ITEM" | grep -q "\"email\":\"$EMAIL_R1\"" && echo "$ITEM" | grep -q '"reportCount":0' && echo "$ITEM" | grep -q '"activeSanction":null' && echo true)"
 
 step "3. 상세 조회 → 신고 정보, 피신고자 이력 1건, 제재 없음, 감사 로그 없음 / 없는 신고 → 404 SAFE_003"
@@ -61,8 +61,8 @@ review "$TOK_ADM" "$REP4" '{"decision":"APPROVE","note":"누적 확인"}'
 check "3회째 PENDING_REVIEW, 상세 reportCount 2, 승인 → actionTaken WARNING·sanction.type WARNING·reportCountAfter 3·conversationEnded false" "" "$([ "$S4" = PENDING_REVIEW ] && [ "$RC" = 2 ] && [ "$CODE" = 200 ] && [ "$(field actionTaken)" = WARNING ] && has '"type":"WARNING"' && [ "$(field reportCountAfter)" = 3 ] && [ "$(field conversationEnded)" = false ] && echo true)"
 
 step "6. 경고 실행 확인: T 알림 WARNING_ISSUED, T 제재 이력 1건(WARNING, effective), 감사 로그 REPORT_APPROVE + SANCTION_WARNING"
-req GET "/api/v1/notifications?page=0&size=1" "$TOK_T"; EV=$(field eventCode); req GET "$A/users/$USER_T/sanctions" "$TOK_ADM"; SN=$(cnt sanctionId); ST=$(field type); req GET "$A/audit-logs?reportId=$REP4" "$TOK_ADM"
-check "WARNING_ISSUED, 제재 1건 WARNING effective true, 감사 로그 2건(APPROVE·SANCTION_WARNING)" "" "$([ "$EV" = WARNING_ISSUED ] && [ "$SN" = 1 ] && [ "$ST" = WARNING ] && has '"effective":true' && [ "$(field totalElements)" = 2 ] && has '"actionCode":"SANCTION_WARNING"' && has '"actionCode":"REPORT_APPROVE"' && echo true)"
+req GET "/api/v1/notifications?page=0&size=1" "$TOK_T"; EV=$(field eventCode); req GET "$A/users/$USER_T/sanctions" "$TOK_ADM"; SN=$(cnt sanctionId); ST=$(field type); EFF=$(has '"effective":true' && echo true); req GET "$A/audit-logs?reportId=$REP4" "$TOK_ADM"
+check "WARNING_ISSUED, 제재 1건 WARNING effective true, 감사 로그 2건(APPROVE·SANCTION_WARNING)" "" "$([ "$EV" = WARNING_ISSUED ] && [ "$SN" = 1 ] && [ "$ST" = WARNING ] && [ "$EFF" = true ] && [ "$(field totalElements)" = 2 ] && has '"actionCode":"SANCTION_WARNING"' && has '"actionCode":"REPORT_APPROVE"' && echo true)"
 
 step "7. 검증: 처리된 신고 재검토 → 409 SAFE_002 / 자동 반영(COUNTED) 신고 검토 → 409 / decision 오류 → 400 / 일반 사용자 검토 → 403"
 review "$TOK_ADM" "$REP4" '{"decision":"APPROVE"}'; C1=$CODE; R1C=$(field code)
