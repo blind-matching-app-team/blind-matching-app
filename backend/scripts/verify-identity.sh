@@ -21,7 +21,8 @@ mk() { local n=$1 g=$2 y=$3 r=$4; local e="bma79-$n-$TS@example.com"; eval "EMAI
   req POST /api/v1/auth/login "" "{\"email\":\"$e\",\"password\":\"$PW\"}"; local t; t=$(field accessToken); eval "TOK_$n=$t"; eval "RT_$n=$(field refreshToken)"
   req PUT /api/v1/users/me/profile "$t" "{\"nickname\":\"인증$n$N\",\"birthDate\":\"$y-05-05\",\"genderCode\":\"$g\",\"regionCode\":\"$r\"}"; }
 V=/api/v1/verification/identity; Q=/api/v1/matching/queue
-result() { printf '{"transactionId":"%s","providerPayload":{"result":{"name":"%s","birthDate":"%s","genderCode":"%s","phoneNumber":"%s"%s}}}' "$1" "$2" "$3" "$4" "$5" "$6"; }
+# CI 는 실행마다 달라야 이전 실행의 계정과 중복(VERIFY_004)되지 않는다. 같은 실행 안에서 같은 이름+생년월일이면 같은 CI(같은 사람).
+result() { printf '{"transactionId":"%s","providerPayload":{"result":{"name":"%s","birthDate":"%s","genderCode":"%s","phoneNumber":"%s","ci":"ci-%s-%s-%s"}}}' "$1" "$2" "$3" "$4" "$5" "$2" "$3" "$TS"; }
 YEAR_MINOR=$(( $(date +%Y) - 18 ))   # 만 18세 → 미성년자
 YEAR_TODAY19=$(( $(date +%Y) - 19 )); TODAY_MD=$(date +%m-%d)
 
@@ -50,11 +51,11 @@ step "6. AC: 인증 후 재인증 요구 없이 매칭 진입 → 200 WAITING (�
 req POST $Q "$TOK_A"; C1=$CODE; S1=$(field status); req DELETE $Q "$TOK_A"; req POST $V/request "$TOK_A"; C2=$CODE; R2=$(field code); req POST $V/confirm "$TOK_A" "$(result "$TX_A2" 홍길동 1995-05-05 M 01011112222 '')"
 check "진입 200 WAITING, 재요청 409 VERIFY_002, 재확인 409 VERIFY_002" "" "$([ "$C1" = 200 ] && [ "$S1" = WAITING ] && [ "$C2" = 409 ] && [ "$R2" = VERIFY_002 ] && [ "$CODE" = 409 ] && [ "$(field code)" = VERIFY_002 ] && echo true)"
 
-step "7. 미성년자(BMA-19 안건3): B 확인에 인증사 생년월일 $YEAR_MINOR-05-05(만 18세) → 403 VERIFY_003, 계정 롤백(로그인 401, 토큰 401, 리프레시 401)"
+step "7. 미성년자(BMA-19 안건3): B 확인에 인증사 생년월일 $YEAR_MINOR-05-05(만 18세) → 403 VERIFY_003, 계정 롤백(로그인 401, 남은 토큰 404, 리프레시 401)"
 mk B F 1997 SEOUL_JUNG; req POST $V/request "$TOK_B"; TX_B=$(field transactionId)
 req POST $V/confirm "$TOK_B" "$(result "$TX_B" 김영희 "$YEAR_MINOR-05-05" F 01033334444 '')"; C1=$CODE; R1=$(field code)
-req POST /api/v1/auth/login "" "{\"email\":\"$EMAIL_B\",\"password\":\"$PW\"}"; C2=$CODE; req GET /api/v1/users/me "$TOK_B"; C3=$CODE; req POST /api/v1/auth/refresh "" "{\"refreshToken\":\"$RT_B\"}"
-check "403 VERIFY_003, 로그인 401, me 401, refresh 401 (프로필 자기 입력 1997 은 무시, 인증사 생년월일이 기준)" "" "$([ "$C1" = 403 ] && [ "$R1" = VERIFY_003 ] && [ "$C2" = 401 ] && [ "$C3" = 401 ] && [ "$CODE" = 401 ] && echo true)"
+req POST /api/v1/auth/login "" "{\"email\":\"$EMAIL_B\",\"password\":\"$PW\"}"; C2=$CODE; req GET /api/v1/users/me "$TOK_B"; C3=$CODE; R3=$(field code); req POST /api/v1/auth/refresh "" "{\"refreshToken\":\"$RT_B\"}"
+check "403 VERIFY_003, 로그인 401, 남은 액세스 토큰으로 me 404 USER_001(계정 없음), refresh 401 (프로필 자기 입력 1997 은 무시, 인증사 생년월일이 기준)" "" "$([ "$C1" = 403 ] && [ "$R1" = VERIFY_003 ] && [ "$C2" = 401 ] && [ "$C3" = 404 ] && [ "$R3" = USER_001 ] && [ "$CODE" = 401 ] && echo true)"
 
 step "8. 경계: 오늘이 19번째 생일($YEAR_TODAY19-$TODAY_MD) → 성인 / 같은 이메일 재가입 가능(탈퇴 처리)"
 mk C M 1990 SEOUL_GANGNAM; req POST $V/request "$TOK_C"; TX_C=$(field transactionId); req POST $V/confirm "$TOK_C" "$(result "$TX_C" 이철수 "$YEAR_TODAY19-$TODAY_MD" M 01055556666 '')"; C1=$CODE
