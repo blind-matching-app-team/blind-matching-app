@@ -70,4 +70,9 @@ public interface UserReportRepository extends JpaRepository<UserReport, Long> {
      * 피신고자의 신고 이력(최신순, S12 상세).
      */
     List<UserReport> findByTargetUserIdAndDeletedOrderByIdDesc(Long targetUserId, String deleted);
+
+    /**
+     * 상태별 건수(S12-02 탭 "대기중 (건수)").
+     */
+    long countByReportStatusInAndDeleted(Collection<String> statuses, String deleted);
 }

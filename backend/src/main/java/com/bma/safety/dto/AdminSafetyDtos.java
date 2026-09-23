@@ -72,6 +72,17 @@ public final class AdminSafetyDtos {
     }
 
     /**
+     * 탭 건수 (S12-02).
+     *
+     * @param pending 검토 대기(PENDING_REVIEW)
+     * @param done    처리완료(RESOLVED + REJECTED)
+     * @param all     자동 반영분까지 포함한 전체
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record ReportCounts(long pending, long done, long all) {
+    }
+
+    /**
      * 피신고자의 다른 신고 이력 항목.
      */
     public record ReportHistoryItem(Long reportId, String reportType, String severity, String status,

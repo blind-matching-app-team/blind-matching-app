@@ -18,6 +18,7 @@ import com.bma.safety.dto.AdminSafetyDtos.AdminReportSummary;
 import com.bma.safety.dto.AdminSafetyDtos.AuditLogResponse;
 import com.bma.safety.dto.AdminSafetyDtos.PartyInfo;
 import com.bma.safety.dto.AdminSafetyDtos.ReportHistoryItem;
+import com.bma.safety.dto.AdminSafetyDtos.ReportCounts;
 import com.bma.safety.dto.AdminSafetyDtos.ReviewRequest;
 import com.bma.safety.dto.AdminSafetyDtos.ReviewResponse;
 import com.bma.safety.dto.AdminSafetyDtos.SanctionRequest;
@@ -96,6 +97,18 @@ public class ReportReviewService {
         Page<UserReport> reports = reportRepository.findByReportStatusInAndDeletedOrderByIdDesc(statuses, YesNo.N, pageable);
         Map<Long, AdminReportSummary> summaries = summarize(reports.getContent());
         return PageResponse.of(reports, report -> summaries.get(report.getId()));
+    }
+
+    /**
+     * 탭 건수 (S12-02 "대기중 (건수) / 처리완료").
+     */
+    public ReportCounts counts() {
+        long pending = reportRepository.countByReportStatusInAndDeleted(List.of(UserReport.STATUS_PENDING_REVIEW), YesNo.N);
+        long done = reportRepository.countByReportStatusInAndDeleted(
+                List.of(UserReport.STATUS_RESOLVED, UserReport.STATUS_REJECTED), YesNo.N);
+        long counted = reportRepository.countByReportStatusInAndDeleted(
+                List.of(UserReport.STATUS_RECEIVED, UserReport.STATUS_COUNTED), YesNo.N);
+        return new ReportCounts(pending, done, pending + done + counted);
     }
 
     /**

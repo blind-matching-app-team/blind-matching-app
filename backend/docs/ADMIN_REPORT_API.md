@@ -14,6 +14,7 @@ BMA-30 확정 정책(신고 유형 5종·즉시검토·누적 3/5/7회 조치·�
 | 화면 | API |
 | --- | --- |
 | S12 목록 탭(대기중/처리완료) | `GET /api/v1/admin/reports?status=PENDING\|DONE\|ALL&page=&size=` |
+| S12-02 탭 건수 "대기중 (건수)" | `GET /api/v1/admin/reports/counts` → `{pending, done, all}` |
 | S12 상세 + S12-08 감사 로그 | `GET /api/v1/admin/reports/{reportId}` |
 | S12-06 승인 / S12-07 반려 | `POST /api/v1/admin/reports/{reportId}/review` |
 | 직권 조치 | `POST /api/v1/admin/users/{userId}/sanctions` · `GET .../sanctions` · `DELETE /api/v1/admin/sanctions/{sanctionId}` |

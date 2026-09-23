@@ -6,6 +6,7 @@ import com.bma.common.security.CustomUserPrincipal;
 import com.bma.safety.dto.AdminSafetyDtos.AdminReportDetail;
 import com.bma.safety.dto.AdminSafetyDtos.AdminReportSummary;
 import com.bma.safety.dto.AdminSafetyDtos.AuditLogResponse;
+import com.bma.safety.dto.AdminSafetyDtos.ReportCounts;
 import com.bma.safety.dto.AdminSafetyDtos.ReviewRequest;
 import com.bma.safety.dto.AdminSafetyDtos.ReviewResponse;
 import com.bma.safety.dto.AdminSafetyDtos.SanctionRequest;
@@ -49,6 +50,12 @@ public class AdminSafetyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.ok(reviewService.list(status, page, size));
+    }
+
+    @Operation(summary = "탭 건수 (S12-02)", description = "대기중(PENDING_REVIEW)·처리완료(RESOLVED+REJECTED)·전체 건수.")
+    @GetMapping("/reports/counts")
+    public ApiResponse<ReportCounts> counts() {
+        return ApiResponse.ok(reviewService.counts());
     }
 
     @Operation(summary = "신고 상세", description = "피신고자의 다른 신고 이력·제재 이력과 이 신고의 감사 로그(S12-08)를 함께 준다.")

@@ -49,9 +49,10 @@ check "200 상세(사기, 이력 1, 제재 0, 감사 로그 0), 404 SAFE_003" ""
 step "4. 반려(S12-07) → REJECTED·조치 없음·누적 0 → T 매칭 제한 해제(좋아요 200) → 대기 목록에서 빠지고 완료 탭에 노출 → 감사 로그 REPORT_REJECT"
 review "$TOK_ADM" "$REP1" '{"decision":"REJECT","note":"근거 부족"}'; RV_OK=$([ "$CODE" = 200 ] && [ "$(field status)" = REJECTED ] && [ "$(field actionTaken)" = NONE ] && [ "$(field reportCountAfter)" = 0 ] && has '"sanction":null' && echo true)
 req POST /api/v1/matching/actions "$TOK_T" "{\"targetUserId\":$USER_R1,\"actionType\":\"LIKE\"}"; C2=$CODE
-req GET "$A/reports?status=PENDING&size=50" "$TOK_ADM"; P_HAS=$(echo "$J" | grep -c "\"reportId\":$REP1,"); req GET "$A/reports?status=DONE&size=50" "$TOK_ADM"; D_HAS=$(echo "$J" | grep -c "\"reportId\":$REP1,")
+req GET "$A/reports?status=PENDING&size=50" "$TOK_ADM"; P_HAS=$(echo "$J" | grep -c "\"reportId\":$REP1,"); P_TOTAL=$(field totalElements); req GET "$A/reports?status=DONE&size=50" "$TOK_ADM"; D_HAS=$(echo "$J" | grep -c "\"reportId\":$REP1,")
 req GET "$A/audit-logs?reportId=$REP1" "$TOK_ADM"
-check "REJECTED/NONE/0, 좋아요 200, PENDING 제외·DONE 포함, 감사 로그 1건 REPORT_REJECT(adminEmail)" "" "$([ "$RV_OK" = true ] && [ "$C2" = 200 ] && [ "$P_HAS" = 0 ] && [ "$D_HAS" = 1 ] && [ "$CODE" = 200 ] && [ "$(field totalElements)" = 1 ] && [ "$(field actionCode)" = REPORT_REJECT ] && [ "$(field adminEmail)" = "$EMAIL_ADM" ] && echo true)"
+AL_OK=$([ "$CODE" = 200 ] && [ "$(field totalElements)" = 1 ] && [ "$(field actionCode)" = REPORT_REJECT ] && [ "$(field adminEmail)" = "$EMAIL_ADM" ] && echo true); req GET "$A/reports/counts" "$TOK_ADM"; CP=$(field pending); CD=$(field done)
+check "REJECTED/NONE/0, 좋아요 200, PENDING 제외·DONE 포함, 감사 로그 1건 REPORT_REJECT(adminEmail), 탭 건수(S12-02) pending=대기 목록 수·done≥1" "" "$([ "$RV_OK" = true ] && [ "$C2" = 200 ] && [ "$P_HAS" = 0 ] && [ "$D_HAS" = 1 ] && [ "$AL_OK" = true ] && [ "$CODE" = 200 ] && [ "$CP" = "$P_TOTAL" ] && [ "${CD:-0}" -ge 1 ] && echo true)"
 
 step "5. 일반 누적: R2 욕설·R3 허위프로필(자동 반영 2회) → R4 기타 3회째 검토 대기(목록 reportCount 2) → 승인 → 3회 경고 자동 실행"
 mk R2 M 1991 SEOUL_GANGNAM; mk R3 M 1992 SEOUL_GANGNAM; mk R4 M 1993 SEOUL_GANGNAM
