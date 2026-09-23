@@ -12,6 +12,7 @@ import com.bma.matching.dto.MatchingDtos.ActionResult;
 import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
 import com.bma.matching.dto.MatchingDtos.QueueResponse;
+import com.bma.matching.dto.MatchingDtos.RematchResponse;
 import com.bma.matching.dto.MatchingDtos.RecommendationResponse;
 import com.bma.matching.dto.MatchingDtos.RevealSummary;
 import com.bma.matching.entity.Match;
@@ -29,6 +30,9 @@ import com.bma.onboarding.entity.UserAnswer;
 import com.bma.onboarding.repository.QuestionOptionRepository;
 import com.bma.onboarding.repository.QuestionRepository;
 import com.bma.onboarding.repository.UserAnswerRepository;
+import com.bma.payment.entity.ItemLedger;
+import com.bma.payment.entity.ItemType;
+import com.bma.payment.service.ItemWalletService;
 import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
 import com.bma.reveal.entity.RevealPolicy;
 import com.bma.reveal.entity.RevealProgress;
@@ -48,6 +52,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -94,6 +100,7 @@ public class MatchingService {
     private final ProfileMaskingService maskingService;
     private final NotificationService notificationService;
     private final AppProperties properties;
+    private final ItemWalletService walletService;
 
     /**
      * 추천 후보를 조회한다.
@@ -414,9 +421,13 @@ public class MatchingService {
     /**
      * 매칭 대기열에 참여한다.
      *
+     * <p>진입 재원(BMA-17 "매칭 기회"): 하루 무료 횟수({@code app.matching.daily-free-chances})가 남았으면
+     * 무료로, 다 썼으면 매칭기회 이용권 1개를 소모한다. 둘 다 없으면 {@code PAY_006} 을 던져 프론트가
+     * 구매 모달(소모형 탭)을 열게 한다. 이미 대기 중이면 새로 소모하지 않고 그 항목을 돌려준다.</p>
+     *
      * @param userId 요청자
      * @return 대기열 상태
-     * @throws BusinessException 프로필이 완성되지 않은 경우
+     * @throws BusinessException 프로필 미완성, 매칭 기회 소진
      */
     @Transactional
     public QueueResponse joinQueue(Long userId) {
@@ -426,21 +437,86 @@ public class MatchingService {
             throw new BusinessException(ErrorCode.PROFILE_INCOMPLETE);
         }
 
-        MatchQueue queue = queueRepository
+        MatchQueue existing = queueRepository
                 .findFirstByUserIdAndQueueStatusAndDeleted(userId, MatchQueue.STATUS_WAITING, YesNo.N)
-                .map(existing -> {
-                    // 대기 시간이 지난 항목은 만료 처리하고 새로 진입시킨다.
-                    if (existing.isExpired()) {
-                        existing.expire();
-                        return queueRepository.save(
-                                MatchQueue.enter(userId, properties.matching().queueExpireMinutes()));
-                    }
-                    return existing;
-                })
-                .orElseGet(() -> queueRepository.save(
-                        MatchQueue.enter(userId, properties.matching().queueExpireMinutes())));
+                .orElse(null);
+        if (existing != null) {
+            if (!existing.isExpired()) {
+                return QueueResponse.from(existing);
+            }
+            // 대기 시간이 지난 항목은 만료 처리하고 새로 진입시킨다. 새 진입은 기회를 다시 소모한다.
+            existing.expire();
+        }
+        return QueueResponse.from(enterQueue(userId, null));
+    }
 
-        return QueueResponse.from(queue);
+    /**
+     * 재매칭권을 써서 현재 매칭을 끝내고 대기 없이 바로 대기열에 다시 들어간다 (S5-12, S10-19).
+     *
+     * <p>상대에게는 매칭 그만두기와 똑같이 S7-14 종료 알림만 간다. 실제 짝 배정은 대기열 매칭(BMA-66)이
+     * 처리하며, 이 진입은 무료 일일 기회를 쓰지 않는다.</p>
+     *
+     * @param userId  요청자
+     * @param matchId 끝낼 매칭
+     * @return 결과
+     * @throws BusinessException 매칭 없음, 재매칭권 없음
+     */
+    @Transactional
+    public RematchResponse rematch(Long userId, Long matchId) {
+        Match match = matchRepository.findByIdAndParticipant(matchId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        if (!match.isActive()) {
+            throw new BusinessException(ErrorCode.MATCH_NOT_FOUND);
+        }
+        if (!walletService.consume(userId, ItemType.REMATCH_TICKET, ItemLedger.REF_MATCH, matchId)) {
+            throw new BusinessException(ErrorCode.REMATCH_TICKET_EXHAUSTED);
+        }
+
+        match.terminate(Match.STATUS_UNMATCHED, userId, "REMATCH");
+        chatRoomRepository.findByMatchIdAndDeleted(matchId, YesNo.N).ifPresent(ChatRoom::close);
+        notificationService.notify(match.partnerOf(userId), NotificationEvent.MATCH_ENDED,
+                "매칭이 종료됐어요",
+                "진행 중이던 대화가 마무리되었습니다. 새로운 매칭을 시작해 보세요.",
+                "MATCH", matchId);
+
+        queueRepository.findFirstByUserIdAndQueueStatusAndDeleted(userId, MatchQueue.STATUS_WAITING, YesNo.N)
+                .ifPresent(MatchQueue::cancel);
+        MatchQueue queue = queueRepository.save(
+                MatchQueue.enter(userId, properties.matching().queueExpireMinutes(), MatchQueue.SOURCE_REMATCH));
+
+        log.info("재매칭권 사용: userId={}, endedMatchId={}, queueId={}", userId, matchId, queue.getId());
+        return new RematchResponse(matchId, QueueResponse.from(queue),
+                walletService.balance(userId, ItemType.REMATCH_TICKET));
+    }
+
+    /**
+     * 오늘 무료 기회로 대기열에 들어간 횟수.
+     *
+     * @param userId 사용자
+     * @return 횟수
+     */
+    public int freeChancesUsedToday(Long userId) {
+        return (int) queueRepository.countByUserIdAndEnterDateGreaterThanEqualAndEntrySourceAndDeleted(
+                userId, LocalDate.now().atStartOfDay(), MatchQueue.SOURCE_FREE, YesNo.N);
+    }
+
+    /**
+     * 진입 재원을 정해 대기열 행을 만든다. 무료 기회 → 매칭기회 이용권 순서로 쓴다.
+     */
+    private MatchQueue enterQueue(Long userId, String forcedSource) {
+        String source = forcedSource;
+        if (source == null) {
+            source = freeChancesUsedToday(userId) < properties.matching().dailyFreeChances()
+                    ? MatchQueue.SOURCE_FREE : MatchQueue.SOURCE_ITEM;
+        }
+        MatchQueue queue = queueRepository.save(
+                MatchQueue.enter(userId, properties.matching().queueExpireMinutes(), source));
+        if (MatchQueue.SOURCE_ITEM.equals(source)
+                && !walletService.consume(userId, ItemType.MATCH_CHANCE, ItemLedger.REF_MATCH_QUEUE, queue.getId())) {
+            // 예외로 트랜잭션이 롤백되어 방금 만든 대기열 행도 사라진다.
+            throw new BusinessException(ErrorCode.MATCH_CHANCE_EXHAUSTED);
+        }
+        return queue;
     }
 
     /**

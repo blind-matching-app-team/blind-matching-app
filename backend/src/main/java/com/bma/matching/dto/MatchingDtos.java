@@ -161,11 +161,13 @@ public final class MatchingDtos {
      *
      * @param queueId     대기열 ID
      * @param queueStatus 상태
+     * @param entrySource 진입 재원 FREE(무료 일일 기회)/ITEM(매칭기회 이용권)/REMATCH(재매칭권)
      * @param enterDate   진입 일시
      * @param expireDate  만료 예정 일시
      */
     public record QueueResponse(Long queueId,
                                 String queueStatus,
+                                String entrySource,
                                 LocalDateTime enterDate,
                                 LocalDateTime expireDate) {
 
@@ -176,8 +178,19 @@ public final class MatchingDtos {
          * @return 응답 DTO
          */
         public static QueueResponse from(MatchQueue queue) {
-            return new QueueResponse(queue.getId(), queue.getQueueStatus(),
+            return new QueueResponse(queue.getId(), queue.getQueueStatus(), queue.getEntrySource(),
                     queue.getEnterDate(), queue.getExpireDate());
         }
+    }
+
+    /**
+     * 재매칭권 사용 결과 (S5-12, S10-19).
+     *
+     * @param endedMatchId          종료된 매칭 ID
+     * @param queue                 즉시 재진입한 대기열
+     * @param remainingRematchTickets 남은 재매칭권
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record RematchResponse(Long endedMatchId, QueueResponse queue, int remainingRematchTickets) {
     }
 }

@@ -133,6 +133,18 @@ public enum ErrorCode {
     WEBHOOK_SIGNATURE_INVALID(HttpStatus.UNAUTHORIZED, "PAY_004", "웹훅 서명 검증에 실패했습니다."),
     /** 결제 건을 찾을 수 없음. */
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY_005", "결제 정보를 찾을 수 없습니다."),
+    /** 오늘의 무료 매칭 기회와 매칭기회 이용권을 모두 소진 (S5-12/S9 → 구매 모달 소모형 탭). */
+    MATCH_CHANCE_EXHAUSTED(HttpStatus.CONFLICT, "PAY_006", "오늘의 매칭 기회를 모두 사용했어요."),
+    /** 재매칭권이 없음 (S5-12/S10-19 → 구매 모달 소모형 탭). */
+    REMATCH_TICKET_EXHAUSTED(HttpStatus.CONFLICT, "PAY_007", "재매칭권이 없어요."),
+    /** 저장된 결제 수단(빌링키)이 없어 자동결제를 할 수 없음. */
+    BILLING_KEY_NOT_FOUND(HttpStatus.CONFLICT, "PAY_008", "등록된 결제 수단이 없습니다."),
+    /** 이미 이용 중인 구독이 있음. */
+    SUBSCRIPTION_ALREADY_ACTIVE(HttpStatus.CONFLICT, "PAY_009", "이미 구독 중입니다."),
+    /** 이용 중인 구독이 없음. */
+    SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY_010", "이용 중인 구독이 없습니다."),
+    /** 결제 수단이 지정되지 않음(결제창 승인 정보도, 저장 카드도 없음). */
+    PAYMENT_METHOD_REQUIRED(HttpStatus.BAD_REQUEST, "PAY_011", "결제 수단을 지정해야 합니다."),
 
     // ── 안전 ────────────────────────────────────────────────────────────────
     /** 이미 신고한 대상에 대한 중복 신고. */

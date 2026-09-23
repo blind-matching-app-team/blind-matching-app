@@ -52,13 +52,15 @@ public final class TestProperties {
                 new AppProperties.Payment(
                         "stub",
                         "",
+                        "test-billing-key-secret",
+                        new AppProperties.Payment.Subscription(3, "0 0 4 * * *"),
                         new AppProperties.Payment.Toss(
                                 "https://api.tosspayments.com",
                                 "test_ck_dummy",
                                 "test_sk_dummy"
                         )
                 ),
-                new AppProperties.Matching(50, 30),
+                new AppProperties.Matching(50, 30, 3),
                 // 소셜 로그인은 단위 테스트 대상이 아니므로 자격 증명을 비워 둔다.
                 // 비어 있는 제공자는 호출 시점에 거부되므로 실수로 외부 요청이 나가지 않는다.
                 new AppProperties.Oauth(

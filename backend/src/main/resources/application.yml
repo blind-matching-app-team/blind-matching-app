@@ -105,6 +105,13 @@ app:
     # stub 이면 실제 승인 없이 성공을 반환한다. 운영에서는 실제 게이트웨이 키로 교체한다.
     gateway: ${PAYMENT_GATEWAY:stub}
     webhook-secret: ${PAYMENT_WEBHOOK_SECRET:}
+    # 빌링키(PY_BILLING_KEY.BILLING_KEY_ENC) AES-GCM 암호화 키. 비어 있으면 JWT 시크릿에서 파생하되 경고를 남긴다.
+    billing-key-secret: ${BILLING_KEY_SECRET:}
+    subscription:
+      # 청구 실패 후 이 일수 동안 매일 재시도하고, 넘기면 EXPIRED 로 종료한다.
+      grace-days: ${SUBSCRIPTION_GRACE_DAYS:3}
+      # 매일 04:00 에 청구일이 지난 구독을 갱신한다. 토스는 자체 스케줄링을 제공하지 않는다.
+      renew-cron: ${SUBSCRIPTION_RENEW_CRON:0 0 4 * * *}
     toss:
       api-base-url: ${TOSS_API_BASE_URL:https://api.tosspayments.com}
       # 테스트 키는 test_ 로, 라이브 키는 live_ 로 시작한다.
@@ -143,6 +150,8 @@ app:
   matching:
     recommendation-max-size: 50
     queue-expire-minutes: 30
+    # 하루에 무료로 매칭 대기열에 들어갈 수 있는 횟수(BMA-17 "매칭 기회"). 넘기면 매칭기회 이용권을 소모한다.
+    daily-free-chances: ${MATCHING_DAILY_FREE_CHANCES:3}
 
 management:
   endpoints:
