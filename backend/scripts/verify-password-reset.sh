@@ -74,8 +74,8 @@ step "13. 탈퇴 계정 이메일 요청 → 200, 링크 없음 (조용히 무�
 req POST /api/v1/auth/signup "" "{\"email\":\"$EMAIL_B\",\"password\":\"$PW\"}"; login "$EMAIL_B" "$PW"; TOK_B=$(field accessToken); req DELETE /api/v1/users/me "$TOK_B"; req POST $PR/request "" "{\"email\":\"$EMAIL_B\"}"
 check "200 sent=true debugResetLink=null" "" "$([ "$CODE" = 200 ] && [ "$(field sent)" = true ] && has '"debugResetLink":null' && echo true)"
 
-step "14. 이메일 대소문자·공백 무시: 대문자로 요청해도 발급"
-req POST $PR/request "" "{\"email\":\"  $(echo "$EMAIL_A" | tr a-z A-Z)  \"}"; TOKEN3=$(token_of)
+step "14. 이메일 대소문자 무시: 대문자로 요청해도 발급 (앞뒤 공백은 형식 검증에서 400)"
+req POST $PR/request "" "{\"email\":\"197609echo "$EMAIL_A" | tr a-z A-Z)\"}"; TOKEN3=$(token_of)
 check "200, 링크 발급" "" "$([ "$CODE" = 200 ] && [ -n "$TOKEN3" ] && echo true)"
 
 if [ -n "$DB_EXEC_CMD" ]; then
