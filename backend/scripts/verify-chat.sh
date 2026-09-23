@@ -18,10 +18,12 @@ cnt() { echo "$J" | grep -o "\"$1\"" | wc -l | tr -d ' '; }
 check() { if [ "$3" = true ]; then PASS=$((PASS+1)); echo "  ✔ $1"; else FAIL=$((FAIL+1)); echo "  ✘ $1  [http=$CODE] $(echo "$J" | head -c 400)"; fi; }
 skip() { SKIP=$((SKIP+1)); echo "  ⊘ $1 (건너뜀: $2)"; }
 step() { echo "[$1]"; }
+# S15 본인인증(BMA-79): 매칭 대기열 진입 전 필수. 스텁 인증사에 성인 결과를 보내 완료시킨다.
+verify_id() { local t=$1 tag=$2; req POST /api/v1/verification/identity/request "$t"; local tx; tx=$(field transactionId); req POST /api/v1/verification/identity/confirm "$t" "{\"transactionId\":\"$tx\",\"providerPayload\":{\"result\":{\"name\":\"홍길동\",\"birthDate\":\"1995-05-05\",\"genderCode\":\"M\",\"phoneNumber\":\"01000000000\",\"ci\":\"ci-$tag\"}}}"; }
 mk() { local n=$1 g=$2 y=$3 r=$4; local e="bma72-$n-$TS@example.com"
   req POST /api/v1/auth/signup "" "{\"email\":\"$e\",\"password\":\"$PW\"}"; eval "USER_$n=$(field userId)"
   req POST /api/v1/auth/login "" "{\"email\":\"$e\",\"password\":\"$PW\"}"; local t; t=$(field accessToken); eval "TOK_$n=$t"
-  req PUT /api/v1/users/me/profile "$t" "{\"nickname\":\"챗$n$N\",\"birthDate\":\"$y-05-05\",\"genderCode\":\"$g\",\"regionCode\":\"$r\"}"; }
+  req PUT /api/v1/users/me/profile "$t" "{\"nickname\":\"챗$n$N\",\"birthDate\":\"$y-05-05\",\"genderCode\":\"$g\",\"regionCode\":\"$r\"}"; verify_id "$t" "$e"; }
 match() { req POST /api/v1/matching/actions "$2" "{\"targetUserId\":$3,\"actionType\":\"LIKE\"}"; req POST /api/v1/matching/actions "$1" "{\"targetUserId\":$4,\"actionType\":\"LIKE\"}"; }
 send() { req POST "/api/v1/chat/rooms/$2/messages" "$1" "{\"messageType\":\"TEXT\",\"content\":\"$3\"}"; }
 report() { req POST /api/v1/reports "$1" "$2"; }
