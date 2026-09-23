@@ -17,6 +17,7 @@ req() { local m=$1 p=$2 t=$3 b=$4; local args=(-s -o /tmp/body.$$ -w '%{http_cod
   CODE=$(curl "${args[@]}"); J=$(cat /tmp/body.$$); }
 field() { echo "$J" | grep -oE "\"$1\":(\"[^\"]*\"|[^,}]*)" | head -1 | sed -E "s/^\"$1\"://; s/^\"//; s/\"$//"; }
 has() { echo "$J" | grep -q -- "$1"; }
+hasF() { echo "$J" | grep -qF -- "$1"; }
 item_bal() { echo "$J" | grep -oE "\{\"itemType\":\"$1\"[^}]*\}" | grep -oE "\"$2\":[0-9]+" | head -1 | cut -d: -f2; }
 free() { echo "$J" | grep -oE '"freeChancesToday":\{[^}]*\}' | grep -oE "\"$1\":[0-9]+" | head -1 | cut -d: -f2; }
 check() { if [ "$3" = true ]; then PASS=$((PASS+1)); echo "  ✔ $1"; else FAIL=$((FAIL+1)); echo "  ✘ $1  [http=$CODE] $(echo "$J" | head -c 400)"; fi; }
@@ -29,7 +30,7 @@ step "1. A 가입/로그인/프로필 → 상품 목록 (CM-14/15/16): 소모형
 req POST /api/v1/auth/signup "" "{\"email\":\"$EMAIL_A\",\"password\":\"$PW\"}"; USER_A=$(field userId); login "$EMAIL_A" "$PW"; TOK_A=$(field accessToken)
 req PUT /api/v1/users/me/profile "$TOK_A" "{\"nickname\":\"$NICK_A\",\"birthDate\":\"1995-05-05\",\"genderCode\":\"M\",\"regionCode\":\"SEOUL_GANGNAM\"}"
 req GET $PAY/products "$TOK_A"
-check "200, 상품 3개, MATCH_CHANCE/REMATCH_TICKET=ITEM, PREMIUM_MONTHLY=SUBSCRIPTION 9900, monthlyGrants 3/2, carryOver 2" "" "$([ "$CODE" = 200 ] && [ "$(echo "$J" | grep -o '"productCode"' | wc -l | tr -d ' ')" = 3 ] && has '"productCode":"MATCH_CHANCE","productName":"매칭기회 추가 1회","productType":"ITEM","price":1000' && has '"productCode":"REMATCH_TICKET"' && has '"productCode":"PREMIUM_MONTHLY","productName":"정밀매칭 구독","productType":"SUBSCRIPTION","price":9900' && has '"monthlyGrants":{"MATCH_CHANCE":3,"REMATCH_TICKET":2},"carryOverMonths":2' && echo true)"
+check "200, 상품 3개, MATCH_CHANCE/REMATCH_TICKET=ITEM, PREMIUM_MONTHLY=SUBSCRIPTION 9900, monthlyGrants 3/2, carryOver 2" "" "$([ "$CODE" = 200 ] && [ "$(echo "$J" | grep -o '"productCode"' | wc -l | tr -d ' ')" = 3 ] && has '"productCode":"MATCH_CHANCE","productName":"매칭기회 추가 1회","productType":"ITEM","price":1000' && has '"productCode":"REMATCH_TICKET"' && has '"productCode":"PREMIUM_MONTHLY","productName":"정밀매칭 구독","productType":"SUBSCRIPTION","price":9900' && has '"monthlyGrants":{"MATCH_CHANCE":3,"REMATCH_TICKET":2}' && has '"carryOverMonths":2' && echo true)"
 
 step "2. 내 이용권 현황 초기값: 잔여 0/0, 무료 기회 3/0/3, 구독 없음"
 req GET $ITEMS "$TOK_A"
@@ -82,7 +83,7 @@ check "400 PAY_002, subscribed=false subscription=null" "" "$([ "$C1" = 400 ] &&
 
 step "14. 구독 등록 (CM-17): 카드 직접 등록 → ACTIVE, 첫 달 청구, 다음 청구일"
 req POST $PAY/subscription "$TOK_A" '{"card":{"cardNumber":"4854797481503803","expiryYear":"30","expiryMonth":"12","identityNumber":"900101","password":"00"}}'; SUB_ID=$(field subscriptionId); NBD=$(field nextBillingDate); PEND=$(field currentPeriodEnd); PSTART=$(field currentPeriodStart)
-check "200, ACTIVE, PREMIUM_MONTHLY 9900, 카드 ****3803, 기간 오늘~, nextBillingDate=종료+1일, monthlyGrants" "" "$([ "$CODE" = 200 ] && [ "$(field status)" = ACTIVE ] && [ "$(field productCode)" = PREMIUM_MONTHLY ] && has '"price":9900' && has '"numberMasked":"****-****-****-3803"' && [ "$PSTART" = "$(date +%F)" ] && [ "$NBD" = "$(date -d "$PEND + 1 day" +%F)" ] && has '"monthlyGrants":{"MATCH_CHANCE":3,"REMATCH_TICKET":2}' && echo true)"
+check "200, ACTIVE, PREMIUM_MONTHLY 9900, 카드 ****3803, 기간 오늘~, nextBillingDate=종료+1일, monthlyGrants" "" "$([ "$CODE" = 200 ] && [ "$(field status)" = ACTIVE ] && [ "$(field productCode)" = PREMIUM_MONTHLY ] && has '"price":9900' && hasF '"numberMasked":"****-****-****-3803"' && [ "$PSTART" = "$(date +%F)" ] && [ "$NBD" = "$(date -d "$PEND + 1 day" +%F)" ] && has '"monthlyGrants":{"MATCH_CHANCE":3,"REMATCH_TICKET":2}' && echo true)"
 
 step "15. 구독 직후 지급: MATCH_CHANCE 지급 3, REMATCH_TICKET 지급 2, subscribed=true / 구독 상태 조회"
 req GET $ITEMS "$TOK_A"; I_OK=$([ "$(item_bal MATCH_CHANCE granted)" = 3 ] && [ "$(item_bal MATCH_CHANCE total)" = 3 ] && [ "$(item_bal REMATCH_TICKET granted)" = 2 ] && [ "$(field subscribed)" = true ] && echo true); req GET $PAY/subscription "$TOK_A"

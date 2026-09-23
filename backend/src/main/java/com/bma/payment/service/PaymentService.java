@@ -85,7 +85,8 @@ public class PaymentService {
      * @param request 요청
      * @return 결제와 결제 후 잔여
      */
-    @Transactional
+    // 승인 실패(PAY_002)를 던져도 결제 원장의 FAILED 행과 이벤트는 남긴다.
+    @Transactional(noRollbackFor = BusinessException.class)
     public ConsumablePurchaseResponse purchaseConsumable(Long userId, ConsumablePurchaseRequest request) {
         Product product = findOnSale(request.productCode(), ProductBenefits.TYPE_ITEM);
         ProductBenefits.Benefit benefit = productBenefits.parse(product);
@@ -140,7 +141,7 @@ public class PaymentService {
      * @param orderName      주문명
      * @return 승인된 결제
      */
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public Payment chargeWithBillingKey(Long userId, Product product, String kind, Long subscriptionId,
                                         String orderName) {
         BillingKey key = billingKeyRepository.findByUserId(userId)

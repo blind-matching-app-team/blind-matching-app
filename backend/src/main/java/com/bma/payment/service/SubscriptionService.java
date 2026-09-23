@@ -61,7 +61,8 @@ public class SubscriptionService {
      * @param request 결제 수단
      * @return 구독 상세
      */
-    @Transactional
+    // 첫 달 청구 실패(PAY_002)여도 저장한 카드와 FAILED 결제 행은 남긴다. 구독 행은 청구 성공 후에만 만든다.
+    @Transactional(noRollbackFor = BusinessException.class)
     public SubscriptionResponse subscribe(Long userId, SubscriptionRequest request) {
         subscriptionRepository.findFirstByUserIdAndSubStatusInAndDeletedOrderByIdDesc(userId, OPEN_STATUSES, YesNo.N)
                 .ifPresent(existing -> {

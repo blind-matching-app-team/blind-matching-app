@@ -4,8 +4,8 @@
 # (docs/TOSS_SANDBOX_VERIFICATION.md 3절). 결과는 개발자센터 > 테스트 결제내역에서 orderId 로 대조할 수 있다.
 #   BASE=http://localhost:8080 bash backend/scripts/verify-payment-toss.sh
 BASE=${BASE:-http://localhost:8080}
-CARD=${TOSS_TEST_CARD_NUMBER:-4854797481503803}
 TS=$(date +%s)
+CARD=${TOSS_TEST_CARD_NUMBER:-4854797481503803}
 EMAIL_A="bma84t-$TS@example.com"; PW="Passw0rd!23"; NICK_A="토스$((TS % 100000))"
 PASS=0; FAIL=0; J=""; CODE=""
 req() { local m=$1 p=$2 t=$3 b=$4; local args=(-s -o /tmp/body.$$ -w '%{http_code}' -X "$m" "$BASE$p" -H 'Content-Type: application/json')
