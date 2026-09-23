@@ -134,6 +134,7 @@ public final class RevealDtos {
      * @param nickname       전체 공개(2)에서만 원문. 그 전에는 {@code null}
      * @param nicknameMasked 부분 공개(1)에서 앞 절반만 남긴 이름(S10-10 "김민??"), 전체 공개면 원문, 실루엣이면 {@code null}
      * @param heightCm       부분 공개(1)부터 노출(S10-18). 본인이 입력하지 않았으면 {@code null}
+     * @param photoVerified  사진인증 배지(S5/S10 카드, BMA-82). 단계와 무관하게 항상 노출
      */
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public record MaskedProfileResponse(Long userId,
@@ -149,6 +150,7 @@ public final class RevealDtos {
                                         String occupation,
                                         Integer heightCm,
                                         String introduction,
-                                        List<String> imageKeys) {
+                                        List<String> imageKeys,
+                                        boolean photoVerified) {
     }
 }

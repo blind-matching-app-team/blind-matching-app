@@ -41,7 +41,17 @@ public record AppProperties(
      *
      * @param identity 본인인증
      */
-    public record Verification(Identity identity) {
+    public record Verification(Identity identity, Photo photo) {
+        /**
+         * 사진인증(S16, BMA-82).
+         *
+         * @param provider            얼굴 대조 제공자(stub/rekognition). 기본 stub
+         * @param similarityThreshold 통과 기준 유사도(0~100)
+         * @param maxSelfieBytes      셀피 최대 크기
+         */
+        public record Photo(String provider, double similarityThreshold, long maxSelfieBytes) {
+        }
+
         /**
          * @param provider             인증사 키워드(stub/pass/nice/toss). 업체 확정 전 기본 stub
          * @param requestExpireMinutes 인증 요청 유효 시간(분)

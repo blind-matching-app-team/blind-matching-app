@@ -6,6 +6,7 @@ import com.bma.reveal.entity.RevealPolicy;
 import com.bma.user.entity.ProfileImage;
 import com.bma.user.entity.UserProfile;
 import com.bma.user.repository.ProfileImageRepository;
+import com.bma.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,8 +32,10 @@ class ProfileMaskingServiceTest {
     void setUp() {
         // 이미지 조회는 이 테스트의 관심사가 아니므로 목으로 대체한다.
         // RegionService 목은 Optional.empty() 를 돌려주므로 지역은 코드 접두 규칙으로 축약된다.
+        // UserRepository 목은 Optional.empty() 를 돌려주므로 사진인증 배지는 false 다.
         maskingService = new ProfileMaskingService(
-                Mockito.mock(ProfileImageRepository.class), Mockito.mock(RegionService.class));
+                Mockito.mock(ProfileImageRepository.class), Mockito.mock(RegionService.class),
+                Mockito.mock(UserRepository.class));
     }
 
     @Test

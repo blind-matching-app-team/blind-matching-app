@@ -19,6 +19,9 @@ check() { if [ "$3" = true ]; then PASS=$((PASS+1)); echo "  ✔ $1"; else FAIL=
 step() { echo "[$1]"; }
 signup_login() { req POST /api/v1/auth/signup "" "{\"email\":\"$1\",\"password\":\"$PW\"}"; req POST /api/v1/auth/login "" "{\"email\":\"$1\",\"password\":\"$PW\"}"; field accessToken; }
 NOTI=/api/v1/notifications
+# S16 사진인증(BMA-82): 매칭 성사 시 상대가 미인증이면 MATCH_UNVERIFIED_PARTNER 알림이 추가되어 건수가 달라지므로, 두 사람 모두 미리 인증한다(스텁: 프로필 사진과 같은 파일이면 통과).
+PNG=${PNG:-"$(cd "$(dirname "$0")/.." && pwd)/docs/postman/sample-profile.png"}
+verify_photo() { local t=$1; curl -s -o /dev/null -X POST "$BASE/api/v1/users/me/image" -H "Authorization: Bearer $t" -F "file=@$PNG;type=image/png"; CODE=$(curl -s -o /tmp/body.$$ -w '%{http_code}' -X POST "$BASE/api/v1/verification/photo" -H "Authorization: Bearer $t" -F "file=@$PNG;type=image/png"); J=$(cat /tmp/body.$$); }
 
 step "1. A 가입/로그인 → 알림 목록 비어 있음 (S7-10)"; TOK_A=$(signup_login "$EMAIL_A"); req GET "$NOTI?page=0&size=20" "$TOK_A"
 check "200, content=[], totalElements=0" "" "$([ "$CODE" = 200 ] && has '"content":\[\]' && [ "$(field totalElements)" = 0 ] && echo true)"
@@ -27,7 +30,7 @@ check "unreadCount=0" "" "$([ "$CODE" = 200 ] && [ "$(field unreadCount)" = 0 ] 
 step "3. B 가입/로그인, A·B 프로필"; TOK_B=$(signup_login "$EMAIL_B")
 req PUT /api/v1/users/me/profile "$TOK_A" "{\"nickname\":\"$NICK_A\",\"birthDate\":\"1995-05-05\",\"genderCode\":\"M\",\"regionCode\":\"SEOUL_GANGNAM\"}"
 req PUT /api/v1/users/me/profile "$TOK_B" "{\"nickname\":\"$NICK_B\",\"birthDate\":\"1997-07-07\",\"genderCode\":\"F\",\"regionCode\":\"SEOUL_JUNG\"}"
-USER_A=$(req GET /api/v1/users/me "$TOK_A"; field userId); USER_B=$(req GET /api/v1/users/me "$TOK_B"; field userId)
+USER_A=$(req GET /api/v1/users/me "$TOK_A"; field userId); USER_B=$(req GET /api/v1/users/me "$TOK_B"; field userId); verify_photo "$TOK_A"; verify_photo "$TOK_B"
 check "프로필 저장 200" "" "$([ "$CODE" = 200 ] && [ -n "$USER_A" ] && [ -n "$USER_B" ] && echo true)"
 step "4. B → A 좋아요 → A 에 MATCH_LIKED (S5, userId=B)"; req POST /api/v1/matching/actions "$TOK_B" "{\"targetUserId\":$USER_A,\"actionType\":\"LIKE\"}"; req GET "$NOTI?page=0&size=20" "$TOK_A"; LIKED_ID=$(field notificationId)
 check "1건, eventCode=MATCH_LIKED, type=MATCH, target S5/userId=B, read=false" "" "$([ "$CODE" = 200 ] && [ "$(items_n)" = 1 ] && [ "$(field eventCode)" = MATCH_LIKED ] && [ "$(field type)" = MATCH ] && has "\"target\":{\"screen\":\"S5\",\"matchId\":null,\"chatRoomId\":null,\"userId\":$USER_B}" && [ "$(field read)" = false ] && echo true)"

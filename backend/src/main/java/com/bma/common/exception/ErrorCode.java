@@ -176,7 +176,17 @@ public enum ErrorCode {
     /** 요청이 만료됐거나 이미 처리됨. */
     IDENTITY_REQUEST_EXPIRED(HttpStatus.CONFLICT, "VERIFY_006", "본인인증 요청이 만료됐어요. 다시 시도해 주세요."),
     /** 인증사 검증 실패. */
-    IDENTITY_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "VERIFY_007", "본인인증에 실패했어요. 다시 시도해 주세요.");
+    IDENTITY_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "VERIFY_007", "본인인증에 실패했어요. 다시 시도해 주세요."),
+
+    // ── 사진인증 (S16, BMA-82) ──────────────────────────────────────────────
+    /** 대조할 프로필 사진이 없음. */
+    PHOTO_PROFILE_IMAGE_REQUIRED(HttpStatus.CONFLICT, "VERIFY_010", "프로필 사진을 먼저 등록해 주세요."),
+    /** 셀피가 프로필 사진과 일치하지 않음(S16-04a~d, 재촬영). */
+    PHOTO_MISMATCH(HttpStatus.UNPROCESSABLE_ENTITY, "VERIFY_011", "프로필 사진과 일치하지 않아요. 다시 촬영해 주세요."),
+    /** 이미 사진인증 완료. */
+    PHOTO_ALREADY_VERIFIED(HttpStatus.CONFLICT, "VERIFY_012", "이미 사진인증을 완료했어요."),
+    /** 얼굴 대조 제공자 호출 실패. */
+    PHOTO_COMPARISON_FAILED(HttpStatus.BAD_GATEWAY, "VERIFY_013", "지금은 사진인증을 할 수 없어요. 잠시 후 다시 시도해 주세요.");
 
     /** 이 오류에 대응하는 HTTP 상태 코드. */
     private final HttpStatus status;
