@@ -5,6 +5,7 @@ import com.bma.common.security.CustomUserPrincipal;
 import com.bma.matching.dto.MatchingDtos.ActionRequest;
 import com.bma.matching.dto.MatchingDtos.ActionResult;
 import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
+import com.bma.matching.dto.MatchingDtos.MatchDetailResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
 import com.bma.matching.dto.MatchingDtos.QueueStatusResponse;
 import com.bma.matching.dto.MatchingDtos.RematchResponse;
@@ -177,5 +178,20 @@ public class MatchingController {
     public ApiResponse<RematchResponse> rematch(@AuthenticationPrincipal CustomUserPrincipal principal,
                                                 @PathVariable Long matchId) {
         return ApiResponse.ok(matchingService.rematch(principal.userId(), matchId));
+    }
+
+    /**
+     * 매칭 상세 (S10).
+     *
+     * @param principal 인증 주체
+     * @param matchId   매칭 ID
+     * @return 상세
+     */
+    @Operation(summary = "매칭 상세 (S10 Reveal 화면)",
+            description = "카드 정보(마스킹 프로필·공통관심사·채팅방) + Reveal 상태(시간·양측 메시지·요청/동의) + 보유 재매칭권. 종료된 매칭은 404.")
+    @GetMapping("/matches/{matchId}")
+    public ApiResponse<MatchDetailResponse> matchDetail(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                                        @PathVariable Long matchId) {
+        return ApiResponse.ok(matchingService.getMatchDetail(principal.userId(), matchId));
     }
 }

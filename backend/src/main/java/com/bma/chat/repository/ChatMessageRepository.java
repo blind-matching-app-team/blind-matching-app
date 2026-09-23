@@ -35,6 +35,11 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     Optional<LocalDateTime> findFirstSendDate(@Param("chatRoomId") Long chatRoomId);
 
     /**
+     * 방에서 특정 사용자가 보낸 메시지 수(Reveal 각자 메시지 조건).
+     */
+    long countByChatRoomIdAndSenderUserIdAndDeleted(Long chatRoomId, Long senderUserId, String deleted);
+
+    /**
      * 사용자가 아직 읽지 않은 메시지 수를 센다.
      *
      * @param chatRoomId        채팅방 ID
