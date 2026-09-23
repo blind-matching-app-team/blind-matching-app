@@ -80,6 +80,48 @@ public class UserSanction extends BaseAuditEntity {
     private String activeYn = YesNo.Y;
 
     /**
+     * 제재를 만든다.
+     *
+     * @param userId         대상
+     * @param sanctionType   종류
+     * @param endDate        종료 일시. 영구·경고면 {@code null}
+     * @param reason         사유(사용자에게 노출)
+     * @param sourceReportId 근거 신고(선택)
+     * @return 저장 대상 엔티티
+     */
+    public static UserSanction of(Long userId, String sanctionType, LocalDateTime endDate,
+                                  String reason, Long sourceReportId) {
+        UserSanction sanction = new UserSanction();
+        sanction.userId = userId;
+        sanction.sanctionType = sanctionType;
+        sanction.startDate = LocalDateTime.now();
+        sanction.endDate = endDate;
+        sanction.reason = reason;
+        sanction.sourceReportId = sourceReportId;
+        sanction.activeYn = YesNo.Y;
+        return sanction;
+    }
+
+    /** 관리자가 해제한다. */
+    public void lift() {
+        this.activeYn = YesNo.N;
+    }
+
+    /**
+     * 기간이 끝난 제재인지 확인한다(감형 판정: 첫 7일 제한이 끝났을 때 카운트 2 감형).
+     *
+     * @param now 기준 시각
+     * @return 종료 일시가 있고 지났으면 {@code true}
+     */
+    public boolean hasEnded(LocalDateTime now) {
+        return endDate != null && !endDate.isAfter(now);
+    }
+
+    public boolean isSuspend() {
+        return TYPE_SUSPEND.equals(sanctionType);
+    }
+
+    /**
      * 로그인을 막는 제재인지 확인한다.
      *
      * @return 정지 또는 영구정지이면 {@code true}

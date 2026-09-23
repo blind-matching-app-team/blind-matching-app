@@ -154,7 +154,13 @@ public enum ErrorCode {
 
     // ── 안전 ────────────────────────────────────────────────────────────────
     /** 이미 신고한 대상에 대한 중복 신고. */
-    REPORT_DUPLICATED(HttpStatus.CONFLICT, "SAFE_001", "이미 접수된 신고입니다.");
+    REPORT_DUPLICATED(HttpStatus.CONFLICT, "SAFE_001", "이미 접수된 신고입니다."),
+    /** 관리자 검토 대상이 아니거나 이미 처리된 신고. */
+    REPORT_NOT_REVIEWABLE(HttpStatus.CONFLICT, "SAFE_002", "검토 대기 중인 신고가 아닙니다."),
+    /** 신고를 찾을 수 없음. */
+    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "SAFE_003", "신고를 찾을 수 없습니다."),
+    /** 제재를 찾을 수 없거나 이미 해제됨. */
+    SANCTION_NOT_FOUND(HttpStatus.NOT_FOUND, "SAFE_004", "제재를 찾을 수 없습니다.");
 
     /** 이 오류에 대응하는 HTTP 상태 코드. */
     private final HttpStatus status;

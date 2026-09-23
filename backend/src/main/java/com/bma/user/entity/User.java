@@ -174,6 +174,26 @@ public class User extends BaseAuditEntity {
     }
 
     /**
+     * 이용을 정지한다(BMA-30 7일 제한·영구 차단).
+     *
+     * @param until 정지 종료 예정. 영구면 {@code null}
+     */
+    public void suspend(LocalDateTime until) {
+        this.userStatus = STATUS_SUSPENDED;
+        this.suspendedUntil = until;
+    }
+
+    /**
+     * 정지를 풀고 다시 활성 상태로 돌린다(기간 만료 또는 관리자 해제).
+     */
+    public void reactivate() {
+        if (STATUS_SUSPENDED.equals(userStatus)) {
+            this.userStatus = STATUS_ACTIVE;
+        }
+        this.suspendedUntil = null;
+    }
+
+    /**
      * 소셜 계정으로 가입했는지 확인한다.
      *
      * @return {@code LOCAL} 이 아니면 {@code true}
