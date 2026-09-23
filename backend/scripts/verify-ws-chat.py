@@ -334,6 +334,8 @@ def main():
     a.pump(12)
     check("12초 내 서버 하트비트 ≥1", a.heartbeats > before, f"heartbeats={a.heartbeats - before}")
 
+    _, notif_before = req("GET", "/api/v1/notifications?page=0&size=50", tok_a)
+    msg_notif_before = sum(1 for x in (notif_before.get("data", {}).get("content") or []) if x.get("eventCode") == "MESSAGE_RECEIVED")
     step("10. S11-08 차단: A 가 B 차단 → A 는 방에서 나감(A 목록 0) → B 가 STOMP 전송 → B 는 /user/queue/chat 에코만, A 토픽 수신 없음, B 이력엔 남음")
     code, j = req("POST", f"/api/v1/users/{user_b}/block", tok_a, {"reason": "test"})
     left = j.get("data", {}).get("chatRoomLeft")
@@ -349,10 +351,11 @@ def main():
           and hq.get("destination") == "/user/queue/chat" and ma is None and top_b == "차단당한 뒤 메시지",
           f"left={left} roomsA={len(rooms_a.get('data', []))} echo={hq} A={ma} topB={top_b}")
     code, j = req("GET", "/api/v1/chat/rooms/unread-count", tok_a)
-    _, notif = req("GET", "/api/v1/notifications?page=0&size=1", tok_a)
-    latest = (notif.get("data", {}).get("content") or [{}])[0].get("eventCode")
-    check("A 안읽음 0, A 최신 알림이 MESSAGE_RECEIVED 아님(차단 후 알림 없음)",
-          code == 200 and j["data"].get("unreadCount") == 0 and latest != "MESSAGE_RECEIVED", f"unread={j.get('data')} latest={latest}")
+    _, notif = req("GET", "/api/v1/notifications?page=0&size=50", tok_a)
+    msg_notif_after = sum(1 for x in (notif.get("data", {}).get("content") or []) if x.get("eventCode") == "MESSAGE_RECEIVED")
+    check("A 안읽음 0, 차단 후 A 에게 MESSAGE_RECEIVED 알림이 늘지 않음",
+          code == 200 and j["data"].get("unreadCount") == 0 and msg_notif_after == msg_notif_before,
+          f"unread={j.get('data')} MESSAGE_RECEIVED before={msg_notif_before} after={msg_notif_after}")
 
     for s_ in (a, b2):
         s_.close()
