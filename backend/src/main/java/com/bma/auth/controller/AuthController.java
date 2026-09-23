@@ -1,11 +1,17 @@
 package com.bma.auth.controller;
 
 import com.bma.auth.dto.AuthDtos.LoginRequest;
+import com.bma.auth.dto.AuthDtos.PasswordResetConfirmRequest;
+import com.bma.auth.dto.AuthDtos.PasswordResetRequest;
+import com.bma.auth.dto.AuthDtos.PasswordResetRequested;
+import com.bma.auth.dto.AuthDtos.PasswordResetResult;
+import com.bma.auth.dto.AuthDtos.PasswordResetTokenStatus;
 import com.bma.auth.dto.AuthDtos.RefreshRequest;
 import com.bma.auth.dto.AuthDtos.SignupRequest;
 import com.bma.auth.dto.AuthDtos.SignupResponse;
 import com.bma.auth.dto.AuthDtos.TokenResponse;
 import com.bma.auth.service.AuthService;
+import com.bma.auth.service.PasswordResetService;
 import com.bma.common.response.ApiResponse;
 import com.bma.common.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,9 +19,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -32,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
     /**
      * 회원가입.
@@ -82,5 +91,48 @@ public class AuthController {
                                     @Valid @RequestBody RefreshRequest request) {
         authService.logout(principal.userId(), request.refreshToken());
         return ApiResponse.ok();
+    }
+
+    // ── 비밀번호 재설정 (S13, BMA-61) — 인증 없이 호출 ──────────────────────
+
+    /**
+     * 재설정 링크 요청 (S13-05).
+     *
+     * @param request 이메일
+     * @return 항상 sent=true
+     */
+    @Operation(summary = "비밀번호 재설정 링크 요청 (S13)",
+            description = "가입 이메일로 30분짜리 재설정 링크를 보낸다. 미가입 이메일이어도 같은 응답(존재 여부 비노출).")
+    @PostMapping("/password-reset/request")
+    public ApiResponse<PasswordResetRequested> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request) {
+        return ApiResponse.ok(passwordResetService.requestReset(request.email()));
+    }
+
+    /**
+     * 토큰 유효성 확인 (S13-06 진입 시).
+     *
+     * @param token 링크의 토큰
+     * @return 유효성
+     */
+    @Operation(summary = "비밀번호 재설정 토큰 확인",
+            description = "링크로 진입한 화면이 폼을 그리기 전에 확인한다. 만료·무효면 400 AUTH_017 → 공통 에러화면(링크 만료).")
+    @GetMapping("/password-reset/validate")
+    public ApiResponse<PasswordResetTokenStatus> validatePasswordResetToken(@RequestParam String token) {
+        return ApiResponse.ok(passwordResetService.validate(token));
+    }
+
+    /**
+     * 새 비밀번호 설정 (S13-09).
+     *
+     * @param request 토큰과 새 비밀번호
+     * @return 변경 결과
+     */
+    @Operation(summary = "비밀번호 재설정 확정 (S13)",
+            description = "토큰을 소진시키고 비밀번호를 바꾼 뒤 모든 기기의 리프레시 토큰을 폐기한다. 만료·무효·재사용은 400 AUTH_017.")
+    @PostMapping("/password-reset/confirm")
+    public ApiResponse<PasswordResetResult> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        return ApiResponse.ok(passwordResetService.confirm(request));
     }
 }

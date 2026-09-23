@@ -59,7 +59,9 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
                 TestProperties.defaults().matching(),
-                TestProperties.defaults().oauth());
+                TestProperties.defaults().oauth(),
+                TestProperties.defaults().mail(),
+                TestProperties.defaults().passwordReset());
         JwtTokenProvider otherProvider = new JwtTokenProvider(otherProperties, new MockEnvironment());
 
         String foreignToken = otherProvider.createAccessToken(1L, "user@example.com", "USER");
@@ -77,7 +79,9 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
                 TestProperties.defaults().matching(),
-                TestProperties.defaults().oauth());
+                TestProperties.defaults().oauth(),
+                TestProperties.defaults().mail(),
+                TestProperties.defaults().passwordReset());
 
         assertThatThrownBy(() -> new JwtTokenProvider(shortSecret, new MockEnvironment()))
                 .isInstanceOf(IllegalStateException.class)
@@ -95,7 +99,9 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
                 TestProperties.defaults().matching(),
-                TestProperties.defaults().oauth());
+                TestProperties.defaults().oauth(),
+                TestProperties.defaults().mail(),
+                TestProperties.defaults().passwordReset());
 
         MockEnvironment prodEnvironment = new MockEnvironment();
         prodEnvironment.setActiveProfiles("prod");
@@ -116,7 +122,9 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().websocket(),
                 TestProperties.defaults().payment(),
                 TestProperties.defaults().matching(),
-                TestProperties.defaults().oauth());
+                TestProperties.defaults().oauth(),
+                TestProperties.defaults().mail(),
+                TestProperties.defaults().passwordReset());
 
         MockEnvironment localEnvironment = new MockEnvironment();
         localEnvironment.setActiveProfiles("local");

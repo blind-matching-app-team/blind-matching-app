@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDateTime;
+
 /**
  * 인증 API의 요청/응답 DTO 모음.
  */
@@ -191,5 +193,70 @@ public final class AuthDtos {
         public static DuplicateEmailDetail of(String provider) {
             return new DuplicateEmailDetail(ERROR_CODE, provider);
         }
+    }
+
+    // ── 비밀번호 재설정 (S13, BMA-61) ─────────────────────────────────────
+
+    /**
+     * 재설정 링크 요청 (S13-04/05).
+     *
+     * @param email 가입 이메일
+     */
+    public record PasswordResetRequest(
+            @NotBlank(message = "이메일은 필수입니다.")
+            @Email(message = "이메일 형식이 올바르지 않습니다.")
+            @Size(max = 255, message = "이메일은 255자를 넘을 수 없습니다.")
+            String email
+    ) {
+    }
+
+    /**
+     * 재설정 링크 요청 결과. 미가입 이메일이어도 같은 모양으로 응답한다(존재 여부 비노출).
+     *
+     * @param sent             항상 {@code true}
+     * @param expiresInMinutes 링크 유효 시간(분)
+     * @param debugResetLink   개발용. {@code app.password-reset.expose-debug-link=true} 이고 실제 발송 대상일 때만 링크를 담는다
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record PasswordResetRequested(boolean sent, int expiresInMinutes, String debugResetLink) {
+    }
+
+    /**
+     * 토큰 유효성 (S13-06 진입 시 확인).
+     *
+     * @param valid     사용 가능하면 {@code true}
+     * @param expiresAt 만료 일시
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record PasswordResetTokenStatus(boolean valid, LocalDateTime expiresAt) {
+    }
+
+    /**
+     * 새 비밀번호 설정 (S13-07~09).
+     *
+     * @param token       메일 링크의 토큰
+     * @param newPassword 새 비밀번호. 회원가입과 같은 규칙(영문+숫자, 8~64자)
+     */
+    public record PasswordResetConfirmRequest(
+            @NotBlank(message = "토큰은 필수입니다.")
+            @Size(max = 200, message = "토큰 형식이 올바르지 않습니다.")
+            String token,
+
+            @NotBlank(message = "새 비밀번호는 필수입니다.")
+            @Size(min = 8, max = 64, message = "비밀번호는 8자 이상 64자 이하여야 합니다.")
+            @Pattern(
+                    regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$",
+                    message = "비밀번호는 영문과 숫자를 모두 포함해야 합니다.")
+            String newPassword
+    ) {
+    }
+
+    /**
+     * 재설정 완료.
+     *
+     * @param changedAt     변경 일시
+     * @param sessionsEnded 함께 폐기한 리프레시 토큰 수(모든 기기 로그아웃)
+     */
+    public record PasswordResetResult(LocalDateTime changedAt, int sessionsEnded) {
     }
 }

@@ -71,7 +71,9 @@ public final class TestProperties {
                         new AppProperties.Oauth.Provider("", "", ""),
                         new AppProperties.Oauth.Provider("", "", ""),
                         new AppProperties.Oauth.Provider("", "", "")
-                )
+                ),
+                new AppProperties.Mail("log", "no-reply@bma.test"),
+                new AppProperties.PasswordReset(30, "http://localhost:5173/reset-password", true)
         );
     }
 }

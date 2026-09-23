@@ -71,6 +71,8 @@ public enum ErrorCode {
     PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_015", "현재 비밀번호가 일치하지 않습니다."),
     /** 소셜 로그인으로만 가입한 계정에는 비밀번호가 없어 변경할 수 없음 (S8-16 미노출 조건). */
     PASSWORD_NOT_SET(HttpStatus.CONFLICT, "AUTH_016", "소셜 계정에는 비밀번호가 없습니다."),
+    /** 재설정 링크 토큰이 없거나 만료·사용됨 (S13-09 → 공통 에러화면 링크 만료). */
+    PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "AUTH_017", "링크가 만료되었거나 유효하지 않습니다. 다시 요청해 주세요."),
 
     // ── 회원 ────────────────────────────────────────────────────────────────
     /** 사용자를 찾을 수 없음. */
