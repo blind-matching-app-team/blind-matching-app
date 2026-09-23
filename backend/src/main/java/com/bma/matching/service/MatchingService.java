@@ -41,7 +41,9 @@ import com.bma.reveal.repository.RevealPolicyRepository;
 import com.bma.reveal.repository.RevealProgressRepository;
 import com.bma.reveal.service.ProfileMaskingService;
 import com.bma.reveal.service.RevealService;
+import com.bma.safety.entity.UserBlock;
 import com.bma.safety.repository.UserBlockRepository;
+import com.bma.safety.service.SafetyService;
 import com.bma.user.entity.ProfileImage;
 import com.bma.user.entity.UserPreference;
 import com.bma.user.entity.UserProfile;
@@ -104,6 +106,7 @@ public class MatchingService {
     private final ItemWalletService walletService;
     private final MatchCreationService matchCreationService;
     private final QueueMatchingService queueMatchingService;
+    private final SafetyService safetyService;
 
     /**
      * 추천 후보를 조회한다.
@@ -185,6 +188,9 @@ public class MatchingService {
             return new ActionResult(targetUserId, request.actionType(), false, null, null);
         }
 
+        // 즉시검토(중대 신고) 대기 중이면 새 매칭을 시작할 수 없다(BMA-30). 예외로 위 액션 저장도 함께 롤백된다.
+        safetyService.assertCanStartMatching(userId);
+
         // 상대도 나에게 호감을 표시했는지 확인한다. 이것이 상호 매칭 판정의 핵심이다.
         boolean mutual = actionRepository.findByFromUserIdAndToUserId(targetUserId, userId)
                 .map(UserAction::isPositive)
@@ -213,7 +219,7 @@ public class MatchingService {
      * @return 진행 중인 매칭 목록(최신순)
      */
     public List<MatchResponse> getMyMatches(Long userId) {
-        List<Match> matches = matchRepository.findActiveMatches(userId, Match.STATUS_ACTIVE);
+        List<Match> matches = visibleActiveMatches(userId);
         if (matches.isEmpty()) {
             return List.of();
         }
@@ -227,12 +233,32 @@ public class MatchingService {
      * @return 매칭 유무 플래그와 최근 매칭. 없으면 {@code hasMatch=false, match=null}
      */
     public CurrentMatchResponse getCurrentMatch(Long userId) {
-        List<Match> matches = matchRepository.findActiveMatches(userId, Match.STATUS_ACTIVE);
+        List<Match> matches = visibleActiveMatches(userId);
         if (matches.isEmpty()) {
             return CurrentMatchResponse.none();
         }
         // findActiveMatches 가 성사 일시 내림차순이라 첫 항목이 가장 최근이다.
         return CurrentMatchResponse.of(buildMatchResponses(userId, List.of(matches.get(0))).get(0));
+    }
+
+    /**
+     * 진행 중인 매칭 중 내가 차단한 상대와의 매칭을 뺀다.
+     *
+     * <p>차단은 매칭 행을 끝내지 않는다(차단당한 쪽 화면을 바꾸지 않기 위해, S11-08). 대신 차단자의
+     * 목록·현재 매칭에서만 조용히 사라진다.</p>
+     */
+    private List<Match> visibleActiveMatches(Long userId) {
+        List<Match> matches = matchRepository.findActiveMatches(userId, Match.STATUS_ACTIVE);
+        if (matches.isEmpty()) {
+            return matches;
+        }
+        Set<Long> blocked = blockRepository.findByBlockUserIdAndDeleted(userId, YesNo.N).stream()
+                .map(UserBlock::getTargetUserId)
+                .collect(Collectors.toSet());
+        if (blocked.isEmpty()) {
+            return matches;
+        }
+        return matches.stream().filter(match -> !blocked.contains(match.partnerOf(userId))).toList();
     }
 
     /**
@@ -434,6 +460,8 @@ public class MatchingService {
         if (!enabled) {
             throw new BusinessException(ErrorCode.MATCHING_DISABLED);
         }
+        // 즉시검토(중대 신고) 대기 중이면 새 매칭에 들어갈 수 없다(BMA-30). 409 MATCH_007.
+        safetyService.assertCanStartMatching(userId);
 
         MatchQueue existing = queueRepository
                 .findFirstByUserIdAndQueueStatusAndDeleted(userId, MatchQueue.STATUS_WAITING, YesNo.N)
@@ -480,6 +508,8 @@ public class MatchingService {
         if (!match.isActive()) {
             throw new BusinessException(ErrorCode.MATCH_NOT_FOUND);
         }
+        // 재매칭도 새 매칭 진입이다. 재매칭권을 쓰기 전에 막는다.
+        safetyService.assertCanStartMatching(userId);
         if (!walletService.consume(userId, ItemType.REMATCH_TICKET, ItemLedger.REF_MATCH, matchId)) {
             throw new BusinessException(ErrorCode.REMATCH_TICKET_EXHAUSTED);
         }

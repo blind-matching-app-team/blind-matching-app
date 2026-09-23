@@ -1,6 +1,7 @@
 package com.bma.chat.entity;
 
 import com.bma.common.entity.BaseAuditEntity;
+import com.bma.common.entity.YesNo;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -85,6 +86,34 @@ public class ChatMessage extends BaseAuditEntity {
     private LocalDateTime sendDate = LocalDateTime.now();
 
     /**
+     * 숨김 여부(S11-08).
+     *
+     * <p>차단된 사람이 보낸 메시지는 저장은 하되 {@code Y} 로 표시한다. 발신자 이력에는 보이고
+     * 상대 이력·안읽음·알림·브로드캐스트에서는 빠진다. 차단 사실을 드러내지 않기 위한 장치다.</p>
+     */
+    @Column(name = "HIDDEN_YN", nullable = false, columnDefinition = "CHAR(1)")
+    private String hiddenYn = YesNo.N;
+
+    /**
+     * 발신자에게만 보이는 숨김 메시지인지 확인한다.
+     *
+     * @return 숨김이면 {@code true}
+     */
+    public boolean isHidden() {
+        return YesNo.isY(hiddenYn);
+    }
+
+    /**
+     * 특정 사용자에게 보여도 되는 메시지인지 확인한다.
+     *
+     * @param viewerUserId 보는 사람
+     * @return 숨김이 아니거나 본인이 보낸 메시지면 {@code true}
+     */
+    public boolean isVisibleTo(Long viewerUserId) {
+        return !isHidden() || senderUserId.equals(viewerUserId);
+    }
+
+    /**
      * 사용자가 보낸 메시지를 만든다.
      *
      * @param chatRoomId     채팅방 ID
@@ -96,6 +125,22 @@ public class ChatMessage extends BaseAuditEntity {
      */
     public static ChatMessage of(Long chatRoomId, Long senderUserId, String messageType,
                                  String content, Long replyMessageId) {
+        return of(chatRoomId, senderUserId, messageType, content, replyMessageId, false);
+    }
+
+    /**
+     * 사용자가 보낸 메시지를 만든다(숨김 여부 지정).
+     *
+     * @param chatRoomId     채팅방 ID
+     * @param senderUserId   발신자(인증 주체에서 가져온 값)
+     * @param messageType    메시지 유형
+     * @param content        내용
+     * @param replyMessageId 답장 대상(선택)
+     * @param hidden         차단 상대에게 보낸 메시지라 발신자에게만 보여야 하는지
+     * @return 저장 대상 엔티티
+     */
+    public static ChatMessage of(Long chatRoomId, Long senderUserId, String messageType,
+                                 String content, Long replyMessageId, boolean hidden) {
         ChatMessage message = new ChatMessage();
         message.chatRoomId = chatRoomId;
         message.senderUserId = senderUserId;
@@ -103,6 +148,7 @@ public class ChatMessage extends BaseAuditEntity {
         message.messageContent = content;
         message.replyMessageId = replyMessageId;
         message.sendDate = LocalDateTime.now();
+        message.hiddenYn = hidden ? YesNo.Y : YesNo.N;
         return message;
     }
 }

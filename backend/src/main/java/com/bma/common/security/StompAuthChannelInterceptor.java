@@ -15,6 +15,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,8 +46,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     /** Bearer 토큰 접두사. */
     private static final String BEARER_PREFIX = "Bearer ";
 
-    /** 대기열 결과 푸시(S9). 사용자 자신의 큐라 방 권한 검사가 없다. */
-    private static final String USER_QUEUE_MATCHING = "/user/queue/matching";
+    /**
+     * 본인 전용 개인 큐. 세션 사용자에게만 가므로 방 권한 검사가 없다.
+     * <ul>
+     *   <li>{@code /user/queue/matching}: 대기열 결과 푸시(S9)</li>
+     *   <li>{@code /user/queue/chat}: 차단 상대에게 보낸(숨김) 메시지의 발신자 에코(S11-08)</li>
+     * </ul>
+     */
+    private static final Set<String> USER_QUEUES = Set.of("/user/queue/matching", "/user/queue/chat");
 
     private final JwtTokenProvider tokenProvider;
     private final ChatRoomAccessChecker chatRoomAccessChecker;
@@ -62,7 +69,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         switch (command) {
             case CONNECT -> authenticate(accessor);
             case SUBSCRIBE -> {
-                if (USER_QUEUE_MATCHING.equals(accessor.getDestination())) {
+                if (USER_QUEUES.contains(accessor.getDestination())) {
                     currentPrincipal(accessor);
                 } else {
                     authorizeDestination(accessor, accessor.getDestination(), TOPIC_CHAT_PATTERN);

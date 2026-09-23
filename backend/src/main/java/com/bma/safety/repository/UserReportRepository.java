@@ -4,6 +4,7 @@ import com.bma.safety.entity.UserReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 
 /**
  * {@link UserReport} 저장소.
@@ -11,9 +12,7 @@ import java.time.LocalDateTime;
 public interface UserReportRepository extends JpaRepository<UserReport, Long> {
 
     /**
-     * 같은 대상에 대한 최근 중복 신고가 있는지 확인한다.
-     *
-     * <p>신고 버튼 연타나 악의적인 반복 신고로 테이블이 오염되는 것을 막는다.</p>
+     * 같은 대상에 대한 최근 중복 신고가 있는지 확인한다(매칭이 없는 경우의 보조 규칙).
      *
      * @param reportUserId 신고자
      * @param targetUserId 피신고자
@@ -23,4 +22,38 @@ public interface UserReportRepository extends JpaRepository<UserReport, Long> {
      */
     boolean existsByReportUserIdAndTargetUserIdAndInsertDateAfterAndDeleted(
             Long reportUserId, Long targetUserId, LocalDateTime since, String deleted);
+
+    /**
+     * 같은 매칭에 대해 이미 신고했는지 확인한다(BMA-30: 매칭 1건당 1회).
+     *
+     * @param reportUserId 신고자
+     * @param targetUserId 피신고자
+     * @param matchId      매칭 ID
+     * @param deleted      논리 삭제 여부
+     * @return 이미 신고했으면 {@code true}
+     */
+    boolean existsByReportUserIdAndTargetUserIdAndMatchIdAndDeleted(
+            Long reportUserId, Long targetUserId, Long matchId, String deleted);
+
+    /**
+     * 피신고자의 누적 반영 횟수(자동 반영 + 관리자 유효 판정).
+     *
+     * @param targetUserId 피신고자
+     * @param statuses     반영으로 치는 상태들
+     * @param deleted      논리 삭제 여부
+     * @return 누적 횟수
+     */
+    long countByTargetUserIdAndReportStatusInAndDeleted(Long targetUserId, Collection<String> statuses, String deleted);
+
+    /**
+     * 즉시검토(중대 유형) 대기 신고가 있는지 확인한다. 있으면 새 매칭 진입이 막힌다.
+     *
+     * @param targetUserId 피신고자
+     * @param severity     심각도
+     * @param reportStatus 상태
+     * @param deleted      논리 삭제 여부
+     * @return 대기 신고가 있으면 {@code true}
+     */
+    boolean existsByTargetUserIdAndSeverityAndReportStatusAndDeleted(
+            Long targetUserId, String severity, String reportStatus, String deleted);
 }

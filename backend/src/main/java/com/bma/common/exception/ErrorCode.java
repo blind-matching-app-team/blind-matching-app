@@ -109,6 +109,8 @@ public enum ErrorCode {
     PROFILE_INCOMPLETE(HttpStatus.BAD_REQUEST, "MATCH_005", "프로필을 완성해야 매칭에 참여할 수 있습니다."),
     /** 선호 조건에서 매칭 참여를 꺼 둔 사용자의 대기열 진입. */
     MATCHING_DISABLED(HttpStatus.CONFLICT, "MATCH_006", "매칭 참여가 꺼져 있어요. 선호 조건에서 켜 주세요."),
+    /** 즉시검토(사기·부적절한 콘텐츠 신고) 대기 중에는 새 매칭에 들어갈 수 없다(BMA-30). */
+    MATCHING_ON_HOLD(HttpStatus.CONFLICT, "MATCH_007", "신고 검토가 진행 중이라 지금은 새 매칭을 시작할 수 없어요."),
 
     // ── 채팅 ────────────────────────────────────────────────────────────────
     /** 채팅방을 찾을 수 없음. */

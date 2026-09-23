@@ -14,6 +14,7 @@ import com.bma.payment.entity.ItemType;
 import com.bma.payment.service.ItemWalletService;
 import com.bma.payment.service.SubscriptionService;
 import com.bma.safety.repository.UserBlockRepository;
+import com.bma.safety.service.SafetyService;
 import com.bma.user.entity.UserPreference;
 import com.bma.user.entity.UserProfile;
 import com.bma.user.repository.UserPreferenceRepository;
@@ -66,6 +67,7 @@ public class QueueMatchingService {
     private final ItemWalletService walletService;
     private final InterestOverlapService interestOverlapService;
     private final QueuePushNotifier pushNotifier;
+    private final SafetyService safetyService;
 
     /**
      * 대기 항목의 짝을 찾는다. 찾으면 매칭을 만들고 양쪽 항목을 MATCHED 로 바꾼다.
@@ -81,6 +83,10 @@ public class QueueMatchingService {
         Long userId = entry.getUserId();
         UserProfile myProfile = profileRepository.findByIdAndDeleted(userId, YesNo.N).orElse(null);
         if (myProfile == null || !myProfile.isMatchable()) {
+            return Optional.empty();
+        }
+        // 대기 중에 중대 신고를 받아 즉시검토 대기가 된 사용자는 짝을 맺지 않는다(BMA-30: 신규 매칭 진입 불가).
+        if (safetyService.isMatchingOnHold(userId)) {
             return Optional.empty();
         }
         UserPreference myPreference = preferenceRepository.findByIdAndDeleted(userId, YesNo.N).orElse(null);
@@ -99,6 +105,9 @@ public class QueueMatchingService {
             }
             if (candidate.isExpired()) {
                 expire(candidate);
+                continue;
+            }
+            if (safetyService.isMatchingOnHold(otherId)) {
                 continue;
             }
             UserProfile otherProfile = profileRepository.findByIdAndDeleted(otherId, YesNo.N).orElse(null);

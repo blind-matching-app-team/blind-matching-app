@@ -4,6 +4,7 @@ import com.bma.chat.dto.ChatDtos.ChatRoomResponse;
 import com.bma.chat.dto.ChatDtos.MessageResponse;
 import com.bma.chat.dto.ChatDtos.ReadResult;
 import com.bma.chat.dto.ChatDtos.SendMessageRequest;
+import com.bma.chat.dto.ChatDtos.SendResult;
 import com.bma.chat.entity.ChatMessage;
 import com.bma.chat.entity.ChatRoom;
 import com.bma.chat.entity.ChatRoomMember;
@@ -134,6 +135,10 @@ public class ChatService implements ChatRoomAccessChecker {
             MaskedProfileResponse partner = partnerProfile == null ? null
                     : maskingService.mask(partnerProfile, imagesByOwner.getOrDefault(partnerId, List.of()), level);
             ChatMessage last = room.getLastMessageId() == null ? null : lastMessageById.get(room.getLastMessageId());
+            // 차단 상대가 보낸 숨김 메시지는 받는 쪽 미리보기에도 나타나면 안 된다(S11-08).
+            if (last != null && !last.isVisibleTo(userId)) {
+                last = null;
+            }
 
             responses.add(new ChatRoomResponse(
                     room.getId(),
@@ -192,7 +197,9 @@ public class ChatService implements ChatRoomAccessChecker {
     }
 
     /**
-     * 채팅방의 메시지 이력을 조회한다.
+     * 채팅방의 메시지 이력을 조회한다 (S11-06 무한스크롤, BMA-72).
+     *
+     * <p>차단 상대에게 보낸 숨김 메시지는 발신자 본인에게만 보인다(S11-08).</p>
      *
      * @param userId 요청자
      * @param roomId 채팅방 ID
@@ -205,35 +212,38 @@ public class ChatService implements ChatRoomAccessChecker {
         requireMember(userId, roomId);
 
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
-        return PageResponse.of(
-                messageRepository.findByChatRoomIdAndDeletedOrderByIdDesc(roomId, YesNo.N, pageable),
-                MessageResponse::from);
+        return PageResponse.of(messageRepository.findVisibleTo(roomId, userId, pageable), MessageResponse::from);
     }
 
     /**
      * 메시지를 전송한다.
      *
+     * <p>차단 관계(어느 방향이든)면 거부하지 않고 <b>숨김</b>으로 저장한다(S11-08). 발신자 화면에는
+     * 정상 전송처럼 보이지만 상대 이력·안읽음·알림·브로드캐스트에는 나타나지 않고, 나가 있는 상대를
+     * 다시 들여보내지도 않는다. 차단 사실을 어느 쪽에도 드러내지 않기 위한 처리다.</p>
+     *
      * @param senderUserId 발신자(반드시 인증 주체에서 전달받은 값)
      * @param roomId       채팅방 ID
      * @param request      전송 요청
-     * @return 저장된 메시지
-     * @throws BusinessException 참여자가 아니거나, 방이 종료되었거나, 차단 관계인 경우
+     * @return 저장된 메시지와 숨김 여부
+     * @throws BusinessException 참여자가 아니거나 방이 종료된 경우
      */
     @Transactional
-    public MessageResponse sendMessage(Long senderUserId, Long roomId, SendMessageRequest request) {
+    public SendResult sendMessage(Long senderUserId, Long roomId, SendMessageRequest request) {
         ChatRoom room = requireActiveRoom(roomId);
         requireMember(senderUserId, roomId);
 
-        // 상대가 목록에서 나간 상태면 다시 들여보낸다(S6-11, 카카오톡 패턴).
-        // 나간 뒤 온 메시지부터 안읽음으로 세도록 읽음 위치는 나갈 때 이미 맞춰 두었다.
-        memberRepository.findByChatRoomIdAndDeleted(roomId, YesNo.N).stream()
-                .filter(member -> !member.getUserId().equals(senderUserId) && member.hasLeft())
-                .forEach(ChatRoomMember::rejoin);
+        List<ChatRoomMember> members = memberRepository.findByChatRoomIdAndDeleted(roomId, YesNo.N);
+        // 나간 상대도 여전히 상대다. 차단 판정은 나가 있는 상대(= 차단자)까지 봐야 한다.
+        Long partnerId = partnerOf(members, senderUserId);
+        boolean hidden = partnerId != null && safetyService.isBlockedBetween(senderUserId, partnerId);
 
-        Long partnerId = findPartnerId(roomId, senderUserId);
-        // 차단한(또는 차단당한) 상대에게는 메시지를 보낼 수 없다.
-        if (partnerId != null && safetyService.isBlockedBetween(senderUserId, partnerId)) {
-            throw new BusinessException(ErrorCode.BLOCKED_RELATION);
+        if (!hidden) {
+            // 상대가 목록에서 나간 상태면 다시 들여보낸다(S6-11, 카카오톡 패턴).
+            // 나간 뒤 온 메시지부터 안읽음으로 세도록 읽음 위치는 나갈 때 이미 맞춰 두었다.
+            members.stream()
+                    .filter(member -> !member.getUserId().equals(senderUserId) && member.hasLeft())
+                    .forEach(ChatRoomMember::rejoin);
         }
 
         String messageType = (request.messageType() == null || request.messageType().isBlank())
@@ -245,7 +255,7 @@ public class ChatService implements ChatRoomAccessChecker {
         }
 
         ChatMessage message = messageRepository.save(ChatMessage.of(
-                roomId, senderUserId, messageType, request.content(), request.replyMessageId()));
+                roomId, senderUserId, messageType, request.content(), request.replyMessageId(), hidden));
 
         room.touchLastMessage(message.getId(), message.getSendDate());
 
@@ -256,12 +266,15 @@ public class ChatService implements ChatRoomAccessChecker {
         // 대화량이 쌓여야 다음 공개 단계로 올라갈 수 있으므로 진행 상태에 반영한다.
         revealService.recordMessage(room.getMatchId(), calculateChatMinutes(roomId));
 
-        if (partnerId != null) {
+        if (partnerId != null && !hidden) {
             notificationService.notify(partnerId, NotificationEvent.MESSAGE_RECEIVED,
                     "새 메시지가 도착했어요", preview(request.content()), "CHAT_ROOM", roomId);
         }
+        if (hidden) {
+            log.debug("숨김 메시지 저장(차단 관계): roomId={}, senderId={}, messageId={}", roomId, senderUserId, message.getId());
+        }
 
-        return MessageResponse.from(message);
+        return new SendResult(MessageResponse.from(message), hidden);
     }
 
     /**
@@ -334,22 +347,6 @@ public class ChatService implements ChatRoomAccessChecker {
             throw new BusinessException(ErrorCode.CHAT_ROOM_CLOSED);
         }
         return room;
-    }
-
-    /**
-     * 방의 상대 참여자 ID를 찾는다.
-     *
-     * @param roomId 채팅방 ID
-     * @param userId 나의 ID
-     * @return 상대 ID. 1:1 방이 아니면 {@code null}
-     */
-    private Long findPartnerId(Long roomId, Long userId) {
-        return memberRepository.findByChatRoomIdAndDeleted(roomId, YesNo.N).stream()
-                .filter(ChatRoomMember::isActiveMember)
-                .map(ChatRoomMember::getUserId)
-                .filter(id -> !id.equals(userId))
-                .findFirst()
-                .orElse(null);
     }
 
     /**
