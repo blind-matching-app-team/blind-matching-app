@@ -24,4 +24,13 @@ public interface UserSanctionRepository extends JpaRepository<UserSanction, Long
     List<UserSanction> findByUserIdAndActiveYnAndDeletedOrderByStartDateDesc(Long userId,
                                                                             String activeYn,
                                                                             String deleted);
+
+    /**
+     * 사용자의 전체 제재 이력(해제 포함)을 오래된 순으로 조회한다. 감형 판정(첫 7일 제한)과 S12 상세에 쓴다.
+     *
+     * @param userId  사용자 ID
+     * @param deleted 논리 삭제 여부
+     * @return 제재 목록
+     */
+    List<UserSanction> findByUserIdAndDeletedOrderByStartDateAscIdAsc(Long userId, String deleted);
 }

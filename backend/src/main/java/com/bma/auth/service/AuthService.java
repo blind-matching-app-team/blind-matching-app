@@ -16,6 +16,7 @@ import com.bma.common.security.TokenType;
 import com.bma.onboarding.service.OnboardingService;
 import com.bma.safety.entity.UserSanction;
 import com.bma.safety.repository.UserSanctionRepository;
+import com.bma.safety.service.SanctionService;
 import com.bma.user.entity.User;
 import com.bma.user.entity.UserProfile;
 import com.bma.user.repository.UserProfileRepository;
@@ -64,6 +65,7 @@ public class AuthService {
     private final UserProfileRepository profileRepository;
     private final OnboardingService onboardingService;
     private final UserSanctionRepository sanctionRepository;
+    private final SanctionService sanctionService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
@@ -121,6 +123,8 @@ public class AuthService {
         }
         // 자격 증명을 먼저 검증한 뒤에 계정 상태를 본다. 순서를 반대로 하면
         // 비밀번호를 모르는 사람도 계정 정지 여부를 알아낼 수 있다.
+        // 7일 제한이 끝났거나 관리자가 해제했으면 여기서 계정을 되살린다(BMA-76).
+        sanctionService.liftExpiredSuspension(user);
         if (user.isSuspended()) {
             throw BusinessException.withDetails(ErrorCode.ACCOUNT_SUSPENDED, describeSuspension(user));
         }

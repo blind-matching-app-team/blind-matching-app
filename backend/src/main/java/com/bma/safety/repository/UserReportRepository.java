@@ -3,8 +3,12 @@ package com.bma.safety.repository;
 import com.bma.safety.entity.UserReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * {@link UserReport} 저장소.
@@ -56,4 +60,19 @@ public interface UserReportRepository extends JpaRepository<UserReport, Long> {
      */
     boolean existsByTargetUserIdAndSeverityAndReportStatusAndDeleted(
             Long targetUserId, String severity, String reportStatus, String deleted);
+
+    /**
+     * 상태별 신고 목록(최신순, S12 목록 탭).
+     */
+    Page<UserReport> findByReportStatusInAndDeletedOrderByIdDesc(Collection<String> statuses, String deleted, Pageable pageable);
+
+    /**
+     * 피신고자의 신고 이력(최신순, S12 상세).
+     */
+    List<UserReport> findByTargetUserIdAndDeletedOrderByIdDesc(Long targetUserId, String deleted);
+
+    /**
+     * 상태별 건수(S12-02 탭 "대기중 (건수)").
+     */
+    long countByReportStatusInAndDeleted(Collection<String> statuses, String deleted);
 }

@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
@@ -91,6 +92,22 @@ public class UserReport extends BaseAuditEntity {
     @Column(name = "REPORT_STATUS", nullable = false)
     private String reportStatus = STATUS_COUNTED;
 
+    /** 승인 시 실행한 조치(NONE/WARNING/SUSPEND/BAN). 반려면 {@code null}. */
+    @Column(name = "ACTION_CODE", length = 30)
+    private String actionCode;
+
+    /** 처리 관리자. */
+    @Column(name = "PROCESS_USER_ID")
+    private Long processUserId;
+
+    /** 처리 일시. */
+    @Column(name = "PROCESS_DATE")
+    private LocalDateTime processDate;
+
+    /** 관리자 검토 메모. */
+    @Column(name = "REVIEW_NOTE", length = 1000)
+    private String reviewNote;
+
     /**
      * 유형이 중대(즉시 관리자 검토) 유형인지 판정한다.
      *
@@ -157,5 +174,43 @@ public class UserReport extends BaseAuditEntity {
      */
     public boolean holdsMatching() {
         return SEVERITY_SEVERE.equals(severity) && isPendingReview();
+    }
+
+    /**
+     * 관리자가 유효로 판정한다(S12-06 승인).
+     *
+     * @param adminUserId 관리자
+     * @param actionCode  실행한 조치
+     * @param note        메모
+     */
+    public void approve(Long adminUserId, String actionCode, String note) {
+        this.reportStatus = STATUS_RESOLVED;
+        this.actionCode = actionCode;
+        this.processUserId = adminUserId;
+        this.processDate = LocalDateTime.now();
+        this.reviewNote = note;
+    }
+
+    /**
+     * 관리자가 기각한다(S12-07 반려). 누적에 반영되지 않고 즉시검토 대기도 풀린다.
+     *
+     * @param adminUserId 관리자
+     * @param note        메모
+     */
+    public void reject(Long adminUserId, String note) {
+        this.reportStatus = STATUS_REJECTED;
+        this.actionCode = null;
+        this.processUserId = adminUserId;
+        this.processDate = LocalDateTime.now();
+        this.reviewNote = note;
+    }
+
+    /**
+     * 처리(승인/반려)가 끝났는지 확인한다.
+     *
+     * @return RESOLVED 또는 REJECTED 면 {@code true}
+     */
+    public boolean isProcessed() {
+        return STATUS_RESOLVED.equals(reportStatus) || STATUS_REJECTED.equals(reportStatus);
     }
 }
