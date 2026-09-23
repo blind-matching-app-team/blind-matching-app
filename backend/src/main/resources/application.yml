@@ -187,6 +187,13 @@ app:
       request-expire-minutes: ${IDENTITY_REQUEST_EXPIRE_MINUTES:10}
       # BMA-19 안건3: 인증사가 검증한 생년월일 기준 만 19세 미만은 가입 롤백.
       adult-age: 19
+    photo:
+      # S16 사진인증(BMA-82). 얼굴 대조 제공자 — 업체(AWS Rekognition 등) 연동 전까지 stub(같은 파일이면 100, 아니면 0). 운영 금지.
+      provider: ${PHOTO_VERIFY_PROVIDER:stub}
+      # 통과 기준 유사도(0~100). Rekognition CompareFaces 기준 80~90 권장.
+      similarity-threshold: ${PHOTO_VERIFY_THRESHOLD:80}
+      # 셀피 최대 크기. 저장하지 않고 메모리에서만 다룬다.
+      max-selfie-bytes: ${PHOTO_VERIFY_MAX_BYTES:10485760}
 
 management:
   health:

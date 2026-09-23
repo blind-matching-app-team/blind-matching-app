@@ -107,6 +107,17 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
+    public byte[] read(String objectKey) {
+        Path path = resolveInsideRoot(objectKey);
+        try {
+            return Files.readAllBytes(path);
+        } catch (IOException e) {
+            log.error("파일 읽기 실패: key={}", objectKey, e);
+            throw new BusinessException(ErrorCode.FILE_STORAGE_FAILED);
+        }
+    }
+
+    @Override
     public void delete(String objectKey) {
         Path target = resolveInsideRoot(objectKey);
         try {

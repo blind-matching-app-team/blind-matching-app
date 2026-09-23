@@ -6,14 +6,17 @@ import com.bma.common.service.RegionService;
 import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
 import com.bma.reveal.entity.RevealPolicy;
 import com.bma.user.entity.ProfileImage;
+import com.bma.user.entity.User;
 import com.bma.user.entity.UserProfile;
 import com.bma.user.repository.ProfileImageRepository;
+import com.bma.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -31,6 +34,7 @@ public class ProfileMaskingService {
 
     private final ProfileImageRepository imageRepository;
     private final RegionService regionService;
+    private final UserRepository userRepository;
 
     /**
      * 프로필 1건을 지정한 공개 단계로 마스킹한다.
@@ -59,8 +63,12 @@ public class ProfileMaskingService {
     public List<MaskedProfileResponse> maskAll(List<UserProfile> profiles,
                                                Map<Long, List<ProfileImage>> imagesByOwner,
                                                int level) {
+        // 사진인증 배지는 US_USER 에 있다. 프로필마다 조회하지 않도록 한 번에 가져온다.
+        Set<Long> verified = userRepository.findAllById(profiles.stream().map(UserProfile::getId).toList()).stream()
+                .filter(User::isPhotoVerified).map(User::getId).collect(Collectors.toSet());
         return profiles.stream()
-                .map(profile -> mask(profile, imagesByOwner.getOrDefault(profile.getId(), List.of()), level))
+                .map(profile -> mask(profile, imagesByOwner.getOrDefault(profile.getId(), List.of()), level,
+                        verified.contains(profile.getId())))
                 .toList();
     }
 
@@ -73,6 +81,14 @@ public class ProfileMaskingService {
      * @return 마스킹된 프로필
      */
     public MaskedProfileResponse mask(UserProfile profile, List<ProfileImage> images, int level) {
+        boolean photoVerified = userRepository.findById(profile.getId()).map(User::isPhotoVerified).orElse(false);
+        return mask(profile, images, level, photoVerified);
+    }
+
+    /**
+     * 사진인증 여부를 이미 알고 있을 때의 마스킹(목록 일괄 처리용).
+     */
+    public MaskedProfileResponse mask(UserProfile profile, List<ProfileImage> images, int level, boolean photoVerified) {
         boolean partialOrAbove = level >= RevealPolicy.LEVEL_PARTIAL;
         boolean fullReveal = level >= RevealPolicy.LEVEL_FULL;
 
@@ -95,7 +111,8 @@ public class ProfileMaskingService {
                 partialOrAbove ? profile.getOccupation() : null,
                 partialOrAbove ? profile.getHeightCm() : null,
                 profile.getIntroduction(),
-                selectImageKeys(images, level));
+                selectImageKeys(images, level),
+                photoVerified);
     }
 
     /**

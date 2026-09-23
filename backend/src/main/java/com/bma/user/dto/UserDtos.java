@@ -161,6 +161,7 @@ public final class UserDtos {
                              boolean phoneVerified,
                              boolean identityVerified,
                              LocalDateTime identityVerifiedAt,
+                             boolean photoVerified,
                              LocalDateTime lastLoginDate,
                              LocalDateTime joinedDate) {
 
@@ -184,6 +185,7 @@ public final class UserDtos {
                     YesNo.isY(user.getPhoneVerifiedYn()),
                     user.isIdentityVerified(),
                     user.getIdentityVerifiedDate(),
+                    user.isPhotoVerified(),
                     user.getLastLoginDate(),
                     user.getInsertDate());
         }
@@ -265,7 +267,8 @@ public final class UserDtos {
                                   Integer heightCm,
                                   String introduction,
                                   String profileStatus,
-                                  Integer profileScore) {
+                                  Integer profileScore,
+                                  boolean photoVerified) {
 
         /**
          * 엔티티를 응답 DTO로 변환한다.
@@ -278,7 +281,7 @@ public final class UserDtos {
          * @param sido    상위 시/도. 없으면 {@code null}
          * @return 응답 DTO
          */
-        public static ProfileResponse of(UserProfile profile, Region sigungu, Region sido) {
+        public static ProfileResponse of(UserProfile profile, Region sigungu, Region sido, boolean photoVerified) {
             return new ProfileResponse(
                     profile.getId(),
                     profile.getNickname(),
@@ -294,7 +297,8 @@ public final class UserDtos {
                     profile.getHeightCm(),
                     profile.getIntroduction(),
                     profile.getProfileStatus(),
-                    profile.getProfileScore());
+                    profile.getProfileScore(),
+                    photoVerified);
         }
     }
 

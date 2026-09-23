@@ -37,4 +37,12 @@ public interface StorageService {
      * @param objectKey 저장소 키
      */
     void delete(String objectKey);
+
+    /**
+     * 저장된 파일의 바이트를 읽는다(사진인증 대조용). 루트 밖 경로는 거부한다.
+     *
+     * @param objectKey 오브젝트 키
+     * @return 파일 내용
+     */
+    byte[] read(String objectKey);
 }

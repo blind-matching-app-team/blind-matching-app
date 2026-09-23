@@ -74,7 +74,8 @@ public final class TestProperties {
                 ),
                 new AppProperties.Mail("log", "no-reply@bma.test"),
                 new AppProperties.PasswordReset(30, "http://localhost:5173/reset-password", true),
-                new AppProperties.Verification(new AppProperties.Verification.Identity("stub", 10, 19))
+                new AppProperties.Verification(new AppProperties.Verification.Identity("stub", 10, 19),
+                        new AppProperties.Verification.Photo("stub", 80.0, 10 * 1024 * 1024L))
         );
     }
 }

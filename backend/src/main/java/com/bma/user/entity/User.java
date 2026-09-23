@@ -118,6 +118,20 @@ public class User extends BaseAuditEntity {
     @Column(name = "IDENTITY_BIRTH_DATE")
     private LocalDate identityBirthDate;
 
+    /** 사진인증 완료 여부(S16, BMA-82). S5/S10 카드 배지·S7-11 미인증 알림의 기준. */
+    @Column(name = "PHOTO_VERIFIED_YN", nullable = false, columnDefinition = "CHAR(1)")
+    private String photoVerifiedYn = YesNo.N;
+
+    @Column(name = "PHOTO_VERIFIED_DATE")
+    private LocalDateTime photoVerifiedDate;
+
+    @Column(name = "PHOTO_VERIFY_PROVIDER", length = 20)
+    private String photoVerifyProvider;
+
+    /** 인증 당시 대조한 프로필 사진. 사진을 바꾸면 인증이 해제된다. */
+    @Column(name = "PHOTO_VERIFIED_IMAGE_ID")
+    private Long photoVerifiedImageId;
+
     /** 마지막 로그인 일시. */
     @Column(name = "LAST_LOGIN_DATE")
     private LocalDateTime lastLoginDate;
@@ -214,6 +228,31 @@ public class User extends BaseAuditEntity {
     }
 
     /**
+     * 사진인증을 완료한다.
+     *
+     * @param provider 얼굴 대조 제공자
+     * @param imageId  대조한 프로필 사진
+     */
+    public void verifyPhoto(String provider, Long imageId) {
+        this.photoVerifiedYn = YesNo.Y;
+        this.photoVerifiedDate = LocalDateTime.now();
+        this.photoVerifyProvider = provider;
+        this.photoVerifiedImageId = imageId;
+    }
+
+    /** 프로필 사진이 바뀌거나 탈퇴하면 사진인증을 내린다. */
+    public void clearPhotoVerification() {
+        this.photoVerifiedYn = YesNo.N;
+        this.photoVerifiedDate = null;
+        this.photoVerifyProvider = null;
+        this.photoVerifiedImageId = null;
+    }
+
+    public boolean isPhotoVerified() {
+        return YesNo.isY(photoVerifiedYn);
+    }
+
+    /**
      * 이용을 정지한다(BMA-30 7일 제한·영구 차단).
      *
      * @param until 정지 종료 예정. 영구면 {@code null}
@@ -270,6 +309,7 @@ public class User extends BaseAuditEntity {
         // 탈퇴한 사람이 다시 가입해 본인인증을 하면 새 계정에 CI 가 묶여야 하므로 해시를 비운다.
         this.identityCiHash = null;
         this.identityBirthDate = null;
+        clearPhotoVerification();
         this.email = "withdrawn-" + id + "@deleted.invalid";
         this.passwordHash = null;
         this.phoneNumber = null;

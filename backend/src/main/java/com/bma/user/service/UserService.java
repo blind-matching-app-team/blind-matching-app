@@ -150,7 +150,7 @@ public class UserService {
 
         log.info("프로필 저장: userId={}, status={}, score={}",
                 userId, saved.getProfileStatus(), saved.getProfileScore());
-        return ProfileResponse.of(saved, sigungu, regionService.findParent(sigungu).orElse(null));
+        return ProfileResponse.of(saved, sigungu, regionService.findParent(sigungu).orElse(null), isPhotoVerified(userId));
     }
 
     /**
@@ -162,7 +162,7 @@ public class UserService {
     private ProfileResponse toProfileResponse(UserProfile profile) {
         Region sigungu = regionService.findSelectableSigungu(profile.getRegionCode()).orElse(null);
         Region sido = sigungu == null ? null : regionService.findParent(sigungu).orElse(null);
-        return ProfileResponse.of(profile, sigungu, sido);
+        return ProfileResponse.of(profile, sigungu, sido, isPhotoVerified(profile.getId()));
     }
 
     /**
@@ -301,6 +301,11 @@ public class UserService {
      * @param userId 사용자 ID
      * @return 사진. 없으면 비어 있음
      */
+    /** S8-08 인증 배지(BMA-82). */
+    private boolean isPhotoVerified(Long userId) {
+        return userRepository.findById(userId).map(User::isPhotoVerified).orElse(false);
+    }
+
     private Optional<ProfileImage> currentImage(Long userId) {
         return imageRepository.findByUserIdAndDeletedOrderByDisplayOrderAsc(userId, YesNo.N).stream()
                 .findFirst();
@@ -314,6 +319,8 @@ public class UserService {
      * @param userId 사용자 ID
      */
     private void removeAllImages(Long userId) {
+        // 사진이 바뀌면 그 사진으로 받은 인증 배지도 내린다(S16, BMA-82).
+        userRepository.findById(userId).ifPresent(User::clearPhotoVerification);
         for (ProfileImage image : imageRepository.findByUserIdAndDeletedOrderByDisplayOrderAsc(userId, YesNo.N)) {
             image.markDeleted();
             storageService.delete(image.getOriginalObjectKey());
