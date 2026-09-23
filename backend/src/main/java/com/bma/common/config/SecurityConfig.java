@@ -42,6 +42,8 @@ public class SecurityConfig {
             "/api/v1/auth/signup",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
+            // 비밀번호 재설정(S13). 로그인 전 흐름이라 JWT 가 없다. 토큰 자체가 자격 증명이다.
+            "/api/v1/auth/password-reset/**",
             // 소셜 로그인. authorize 는 브라우저 이동, callback 은 3사가 호출하므로
             // JWT 를 가질 수 없다. exchange 는 티켓 자체가 자격 증명이다.
             "/api/v1/auth/social/**",

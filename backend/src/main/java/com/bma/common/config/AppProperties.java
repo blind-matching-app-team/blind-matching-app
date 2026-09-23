@@ -19,6 +19,8 @@ import java.util.List;
  * @param payment   결제 게이트웨이 설정
  * @param matching  추천/매칭 관련 정책
  * @param oauth     소셜 로그인 제공자 설정
+ * @param mail          메일 발송 설정
+ * @param passwordReset 비밀번호 재설정 링크 정책
  */
 @Validated
 @ConfigurationProperties(prefix = "app")
@@ -29,8 +31,29 @@ public record AppProperties(
         @NotNull Websocket websocket,
         @NotNull Payment payment,
         @NotNull Matching matching,
-        @NotNull Oauth oauth
+        @NotNull Oauth oauth,
+        @NotNull Mail mail,
+        @NotNull PasswordReset passwordReset
 ) {
+
+    /**
+     * 메일 발송 설정.
+     *
+     * @param mode log(발송 없이 로그, 기본)/smtp(spring.mail.* 로 실제 발송)
+     * @param from 발신 주소
+     */
+    public record Mail(String mode, String from) {
+    }
+
+    /**
+     * 비밀번호 재설정 링크 정책 (S13).
+     *
+     * @param tokenMinutes    링크 유효 시간(분). 사양서 v1.4 에서 30분 확정
+     * @param linkBaseUrl     프론트 2단계 화면 주소. 여기에 ?token= 이 붙는다
+     * @param exposeDebugLink true 면 요청 응답에 링크를 실어 준다. 로컬 검증 전용, 운영은 반드시 false
+     */
+    public record PasswordReset(int tokenMinutes, String linkBaseUrl, boolean exposeDebugLink) {
+    }
 
     /**
      * JWT 설정.

@@ -2,6 +2,16 @@ spring:
   application:
     name: blind-matching-api
 
+  mail:
+    # app.mail.mode=smtp 일 때만 쓴다. host 가 비어 있으면 JavaMailSender 가 만들어지지 않는다.
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
   datasource:
     # 스키마와 docker-compose 모두 소문자 bma 로 통일했다.
     # (이전에는 스키마가 대문자 BMA 를 만들고 앱은 소문자 bma 에 접속해,
@@ -152,6 +162,19 @@ app:
     queue-expire-minutes: 30
     # 하루에 무료로 매칭 대기열에 들어갈 수 있는 횟수(BMA-17 "매칭 기회"). 넘기면 매칭기회 이용권을 소모한다.
     daily-free-chances: ${MATCHING_DAILY_FREE_CHANCES:3}
+
+  mail:
+    # log: 발송하지 않고 링크를 로그에 남긴다(기본, 로컬). smtp: spring.mail.* 설정으로 실제 발송.
+    mode: ${MAIL_MODE:log}
+    from: ${MAIL_FROM:no-reply@bma.local}
+
+  password-reset:
+    # S13 사양서 v1.4: 재설정 링크 유효시간 30분.
+    token-minutes: ${PASSWORD_RESET_TOKEN_MINUTES:30}
+    # 프론트 2단계(새 비밀번호 설정) 화면. ?token= 이 붙는다.
+    link-base-url: ${PASSWORD_RESET_LINK_BASE_URL:http://localhost:5173/reset-password}
+    # true 면 요청 응답에 링크(토큰)를 실어 준다. 메일 없이 검증할 때만 켠다. 운영 금지.
+    expose-debug-link: ${PASSWORD_RESET_EXPOSE_DEBUG_LINK:false}
 
 management:
   endpoints:
