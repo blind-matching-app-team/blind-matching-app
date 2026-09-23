@@ -177,6 +177,11 @@ app:
     expose-debug-link: ${PASSWORD_RESET_EXPOSE_DEBUG_LINK:false}
 
 management:
+  health:
+    mail:
+      # 메일 의존성이 있으면 SMTP 연결을 헬스에 포함시켜 host 가 비어 있는 log 모드에서 전체가 DOWN(503) 이 된다.
+      # 실제 발송(smtp 모드)을 쓰는 환경에서만 MAIL_HEALTH_ENABLED=true 로 켠다.
+      enabled: ${MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:
