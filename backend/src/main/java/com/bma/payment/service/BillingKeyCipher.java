@@ -2,6 +2,7 @@ package com.bma.payment.service;
 
 import com.bma.common.config.AppProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -30,6 +31,8 @@ public class BillingKeyCipher {
     private final SecretKeySpec key;
     private final SecureRandom random = new SecureRandom();
 
+    // 생성자가 둘(설정용·테스트용)이라 스프링이 고를 수 있게 명시한다.
+    @Autowired
     public BillingKeyCipher(AppProperties properties) {
         this(resolveSecret(properties));
     }
