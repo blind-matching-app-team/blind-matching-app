@@ -78,6 +78,15 @@ public final class ChatDtos {
     }
 
     /**
+     * 전송 처리 결과. 컨트롤러가 어디로 배달할지 정하는 데 쓴다(응답 본문에는 {@code message}만 나간다).
+     *
+     * @param message 저장된 메시지
+     * @param hidden  차단 상대에게 보낸 숨김 메시지인지. {@code true}면 방에 브로드캐스트하지 않고 발신자에게만 되돌린다(S11-08)
+     */
+    public record SendResult(MessageResponse message, boolean hidden) {
+    }
+
+    /**
      * 채팅방 목록 항목 (S6-09 리스트 아이템).
      *
      * <p>아이템 하나를 그리는 데 필요한 것을 전부 담는다: 상대의 마스킹된 프로필(블러 아바타·"???"),

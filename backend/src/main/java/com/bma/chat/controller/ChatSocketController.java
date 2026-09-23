@@ -1,7 +1,8 @@
 package com.bma.chat.controller;
 
-import com.bma.chat.dto.ChatDtos.MessageResponse;
 import com.bma.chat.dto.ChatDtos.SendMessageRequest;
+import com.bma.chat.dto.ChatDtos.SendResult;
+import com.bma.chat.service.ChatMessagePublisher;
 import com.bma.chat.service.ChatService;
 import com.bma.common.security.CustomUserPrincipal;
 import jakarta.validation.Valid;
@@ -10,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -40,7 +40,7 @@ import java.security.Principal;
 public class ChatSocketController {
 
     private final ChatService chatService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatMessagePublisher publisher;
 
     /**
      * 메시지 전송 처리.
@@ -60,12 +60,13 @@ public class ChatSocketController {
         // 인터셉터에서 이미 검증했지만, 핸들러가 직접 호출되는 경로가 생길 수 있으므로 한 번 더 확인한다.
         CustomUserPrincipal sender = CustomUserPrincipal.from(principal);
 
-        MessageResponse saved = chatService.sendMessage(sender.userId(), roomId, request);
+        SendResult result = chatService.sendMessage(sender.userId(), roomId, request);
 
         // 구독 권한 역시 인터셉터가 검사하므로, 이 토픽은 방 참여자에게만 전달된다.
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, saved);
+        // 숨김 메시지(차단 상대)는 방 토픽 대신 발신자 개인 큐로만 간다(S11-08).
+        publisher.publish(sender, result);
 
         log.debug("채팅 메시지 전송: roomId={}, senderId={}, messageId={}",
-                roomId, sender.userId(), saved.messageId());
+                roomId, sender.userId(), result.message().messageId());
     }
 }

@@ -4,6 +4,8 @@ import com.bma.chat.dto.ChatDtos.ChatRoomResponse;
 import com.bma.chat.dto.ChatDtos.MessageResponse;
 import com.bma.chat.dto.ChatDtos.ReadResult;
 import com.bma.chat.dto.ChatDtos.SendMessageRequest;
+import com.bma.chat.dto.ChatDtos.SendResult;
+import com.bma.chat.service.ChatMessagePublisher;
 import com.bma.chat.dto.ChatDtos.UnreadCountResponse;
 import com.bma.chat.service.ChatService;
 import com.bma.common.response.ApiResponse;
@@ -13,7 +15,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +40,7 @@ import java.util.List;
 public class ChatController {
 
     private final ChatService chatService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatMessagePublisher publisher;
 
     /**
      * 내 채팅방 목록 조회.
@@ -103,9 +104,9 @@ public class ChatController {
     public ApiResponse<MessageResponse> send(@AuthenticationPrincipal CustomUserPrincipal principal,
                                              @PathVariable Long roomId,
                                              @Valid @RequestBody SendMessageRequest request) {
-        MessageResponse saved = chatService.sendMessage(principal.userId(), roomId, request);
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, saved);
-        return ApiResponse.ok(saved);
+        SendResult result = chatService.sendMessage(principal.userId(), roomId, request);
+        publisher.publish(principal, result);
+        return ApiResponse.ok(result.message());
     }
 
     /**
