@@ -37,6 +37,7 @@ POST /api/v1/matching/queue
 |---|---|---|
 | 400 | MATCH_005 | 프로필 미완성(닉네임·생년월일·지역·성별) |
 | 409 | MATCH_006 | 선호 조건에서 매칭 참여를 꺼 둠 |
+| 403 | VERIFY_001 | 본인인증 미완료(S4 → S15 관문, BMA-79). `IDENTITY_VERIFICATION_API.md` |
 | 409 | PAY_006 | 매칭 기회 소진 → 구매 모달 |
 
 ## 2. 상태 폴링

@@ -61,7 +61,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().matching(),
                 TestProperties.defaults().oauth(),
                 TestProperties.defaults().mail(),
-                TestProperties.defaults().passwordReset());
+                TestProperties.defaults().passwordReset(),
+                TestProperties.defaults().verification());
         JwtTokenProvider otherProvider = new JwtTokenProvider(otherProperties, new MockEnvironment());
 
         String foreignToken = otherProvider.createAccessToken(1L, "user@example.com", "USER");
@@ -81,7 +82,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().matching(),
                 TestProperties.defaults().oauth(),
                 TestProperties.defaults().mail(),
-                TestProperties.defaults().passwordReset());
+                TestProperties.defaults().passwordReset(),
+                TestProperties.defaults().verification());
 
         assertThatThrownBy(() -> new JwtTokenProvider(shortSecret, new MockEnvironment()))
                 .isInstanceOf(IllegalStateException.class)
@@ -101,7 +103,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().matching(),
                 TestProperties.defaults().oauth(),
                 TestProperties.defaults().mail(),
-                TestProperties.defaults().passwordReset());
+                TestProperties.defaults().passwordReset(),
+                TestProperties.defaults().verification());
 
         MockEnvironment prodEnvironment = new MockEnvironment();
         prodEnvironment.setActiveProfiles("prod");
@@ -124,7 +127,8 @@ class JwtTokenProviderTest {
                 TestProperties.defaults().matching(),
                 TestProperties.defaults().oauth(),
                 TestProperties.defaults().mail(),
-                TestProperties.defaults().passwordReset());
+                TestProperties.defaults().passwordReset(),
+                TestProperties.defaults().verification());
 
         MockEnvironment localEnvironment = new MockEnvironment();
         localEnvironment.setActiveProfiles("local");

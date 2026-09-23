@@ -74,4 +74,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return 존재하면 {@code true}
      */
     boolean existsByIdAndDeleted(Long id, String deleted);
+
+    /**
+     * 같은 CI 해시가 다른 활성 계정에 묶여 있는지(본인인증 중복 계정 방지, BMA-79).
+     */
+    boolean existsByIdentityCiHashAndDeletedAndIdNot(String identityCiHash, String deleted, Long id);
 }

@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -97,6 +98,26 @@ public class User extends BaseAuditEntity {
     @Column(name = "PHONE_VERIFIED_YN", nullable = false, columnDefinition = "CHAR(1)")
     private String phoneVerifiedYn = YesNo.N;
 
+    /** 본인인증 완료 여부(S15, BMA-79). 매칭 진입(S9)의 관문. */
+    @Column(name = "IDENTITY_VERIFIED_YN", nullable = false, columnDefinition = "CHAR(1)")
+    private String identityVerifiedYn = YesNo.N;
+
+    @Column(name = "IDENTITY_VERIFIED_DATE")
+    private LocalDateTime identityVerifiedDate;
+
+    @Column(name = "IDENTITY_PROVIDER", length = 20)
+    private String identityProvider;
+
+    /** 인증사 CI 의 SHA-256. 같은 사람이 계정을 여러 개 만드는 것을 막는다. */
+    @JsonIgnore
+    @Column(name = "IDENTITY_CI_HASH", length = 64)
+    private String identityCiHash;
+
+    /** 인증사가 검증한 생년월일. 성인 판정의 법적 근거(프로필의 자기 입력값은 참고용). */
+    @JsonIgnore
+    @Column(name = "IDENTITY_BIRTH_DATE")
+    private LocalDate identityBirthDate;
+
     /** 마지막 로그인 일시. */
     @Column(name = "LAST_LOGIN_DATE")
     private LocalDateTime lastLoginDate;
@@ -174,6 +195,25 @@ public class User extends BaseAuditEntity {
     }
 
     /**
+     * 본인인증을 완료한다.
+     *
+     * @param provider  인증사
+     * @param ciHash    CI 해시
+     * @param birthDate 검증된 생년월일
+     */
+    public void verifyIdentity(String provider, String ciHash, LocalDate birthDate) {
+        this.identityVerifiedYn = YesNo.Y;
+        this.identityVerifiedDate = LocalDateTime.now();
+        this.identityProvider = provider;
+        this.identityCiHash = ciHash;
+        this.identityBirthDate = birthDate;
+    }
+
+    public boolean isIdentityVerified() {
+        return YesNo.isY(identityVerifiedYn);
+    }
+
+    /**
      * 이용을 정지한다(BMA-30 7일 제한·영구 차단).
      *
      * @param until 정지 종료 예정. 영구면 {@code null}
@@ -227,6 +267,9 @@ public class User extends BaseAuditEntity {
      */
     public void withdraw() {
         this.userStatus = STATUS_WITHDRAWN;
+        // 탈퇴한 사람이 다시 가입해 본인인증을 하면 새 계정에 CI 가 묶여야 하므로 해시를 비운다.
+        this.identityCiHash = null;
+        this.identityBirthDate = null;
         this.email = "withdrawn-" + id + "@deleted.invalid";
         this.passwordHash = null;
         this.phoneNumber = null;

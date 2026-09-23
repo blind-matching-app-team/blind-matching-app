@@ -179,6 +179,15 @@ app:
     # true 면 요청 응답에 링크(토큰)를 실어 준다. 메일 없이 검증할 때만 켠다. 운영 금지.
     expose-debug-link: ${PASSWORD_RESET_EXPOSE_DEBUG_LINK:false}
 
+  verification:
+    identity:
+      # S15 본인인증(BMA-79). 업체(PASS/NICE/토스) 확정 전까지 stub — 운영에서는 반드시 실제 업체 키워드로 바꾼다.
+      provider: ${IDENTITY_PROVIDER:stub}
+      # 인증 요청(거래 ID) 유효 시간. SDK 창을 띄워 두고 방치하면 만료된다.
+      request-expire-minutes: ${IDENTITY_REQUEST_EXPIRE_MINUTES:10}
+      # BMA-19 안건3: 인증사가 검증한 생년월일 기준 만 19세 미만은 가입 롤백.
+      adult-age: 19
+
 management:
   health:
     mail:

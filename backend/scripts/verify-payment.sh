@@ -24,11 +24,13 @@ check() { if [ "$3" = true ]; then PASS=$((PASS+1)); echo "  ✔ $1"; else FAIL=
 skip() { SKIP=$((SKIP+1)); echo "  ⊘ $1 (건너뜀: $2)"; }
 step() { echo "[$1]"; }
 login() { req POST /api/v1/auth/login "" "{\"email\":\"$1\",\"password\":\"$2\"}"; }
+# S15 본인인증(BMA-79): 매칭 대기열 진입 전 필수. 스텁 인증사에 성인 결과를 보내 완료시킨다.
+verify_id() { local t=$1 tag=$2; req POST /api/v1/verification/identity/request "$t"; local tx; tx=$(field transactionId); req POST /api/v1/verification/identity/confirm "$t" "{\"transactionId\":\"$tx\",\"providerPayload\":{\"result\":{\"name\":\"홍길동\",\"birthDate\":\"1995-05-05\",\"genderCode\":\"M\",\"phoneNumber\":\"01000000000\",\"ci\":\"ci-$tag\"}}}"; }
 PAY=/api/v1/payments; ITEMS=$PAY/me/items; Q=/api/v1/matching/queue
 
 step "1. A 가입/로그인/프로필 → 상품 목록 (CM-14/15/16): 소모형 2 + 구독 1, 가격·월 지급 구성"
 req POST /api/v1/auth/signup "" "{\"email\":\"$EMAIL_A\",\"password\":\"$PW\"}"; USER_A=$(field userId); login "$EMAIL_A" "$PW"; TOK_A=$(field accessToken)
-req PUT /api/v1/users/me/profile "$TOK_A" "{\"nickname\":\"$NICK_A\",\"birthDate\":\"1995-05-05\",\"genderCode\":\"M\",\"regionCode\":\"SEOUL_GANGNAM\"}"
+req PUT /api/v1/users/me/profile "$TOK_A" "{\"nickname\":\"$NICK_A\",\"birthDate\":\"1995-05-05\",\"genderCode\":\"M\",\"regionCode\":\"SEOUL_GANGNAM\"}"; verify_id "$TOK_A" "$EMAIL_A"
 req GET $PAY/products "$TOK_A"
 check "200, 상품 3개, MATCH_CHANCE/REMATCH_TICKET=ITEM, PREMIUM_MONTHLY=SUBSCRIPTION 9900, monthlyGrants 3/2, carryOver 2" "" "$([ "$CODE" = 200 ] && [ "$(echo "$J" | grep -o '"productCode"' | wc -l | tr -d ' ')" = 3 ] && has '"productCode":"MATCH_CHANCE","productName":"매칭기회 추가 1회","productType":"ITEM","price":1000' && has '"productCode":"REMATCH_TICKET"' && has '"productCode":"PREMIUM_MONTHLY","productName":"정밀매칭 구독","productType":"SUBSCRIPTION","price":9900' && has '"monthlyGrants":{"MATCH_CHANCE":3,"REMATCH_TICKET":2}' && has '"carryOverMonths":2' && echo true)"
 

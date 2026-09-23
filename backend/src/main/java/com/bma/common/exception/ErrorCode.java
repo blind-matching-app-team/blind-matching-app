@@ -160,7 +160,23 @@ public enum ErrorCode {
     /** 신고를 찾을 수 없음. */
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "SAFE_003", "신고를 찾을 수 없습니다."),
     /** 제재를 찾을 수 없거나 이미 해제됨. */
-    SANCTION_NOT_FOUND(HttpStatus.NOT_FOUND, "SAFE_004", "제재를 찾을 수 없습니다.");
+    SANCTION_NOT_FOUND(HttpStatus.NOT_FOUND, "SAFE_004", "제재를 찾을 수 없습니다."),
+
+    // ── 본인인증 (S15, BMA-79) ───────────────────────────────────────────────
+    /** 본인인증 없이 매칭 진입(S4 → S15 관문). */
+    IDENTITY_REQUIRED(HttpStatus.FORBIDDEN, "VERIFY_001", "본인인증 후에만 매칭을 시작할 수 있어요."),
+    /** 이미 완료된 계정의 재요청. */
+    IDENTITY_ALREADY_VERIFIED(HttpStatus.CONFLICT, "VERIFY_002", "이미 본인인증을 완료했어요."),
+    /** 인증사 생년월일 기준 만 19세 미만(BMA-19 안건3). 계정은 롤백된다. */
+    IDENTITY_MINOR(HttpStatus.FORBIDDEN, "VERIFY_003", "만 19세 이상만 가입할 수 있어요."),
+    /** 같은 사람(CI)이 이미 다른 계정으로 인증함. */
+    IDENTITY_DUPLICATED(HttpStatus.CONFLICT, "VERIFY_004", "이미 다른 계정에서 본인인증한 정보예요."),
+    /** 거래 ID 가 없거나 내 요청이 아님. */
+    IDENTITY_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "VERIFY_005", "본인인증 요청을 찾을 수 없어요. 다시 시도해 주세요."),
+    /** 요청이 만료됐거나 이미 처리됨. */
+    IDENTITY_REQUEST_EXPIRED(HttpStatus.CONFLICT, "VERIFY_006", "본인인증 요청이 만료됐어요. 다시 시도해 주세요."),
+    /** 인증사 검증 실패. */
+    IDENTITY_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "VERIFY_007", "본인인증에 실패했어요. 다시 시도해 주세요.");
 
     /** 이 오류에 대응하는 HTTP 상태 코드. */
     private final HttpStatus status;

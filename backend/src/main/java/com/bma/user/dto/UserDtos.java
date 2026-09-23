@@ -159,6 +159,8 @@ public final class UserDtos {
                              String userRole,
                              boolean emailVerified,
                              boolean phoneVerified,
+                             boolean identityVerified,
+                             LocalDateTime identityVerifiedAt,
                              LocalDateTime lastLoginDate,
                              LocalDateTime joinedDate) {
 
@@ -180,6 +182,8 @@ public final class UserDtos {
                     user.getUserRole(),
                     YesNo.isY(user.getEmailVerifiedYn()),
                     YesNo.isY(user.getPhoneVerifiedYn()),
+                    user.isIdentityVerified(),
+                    user.getIdentityVerifiedDate(),
                     user.getLastLoginDate(),
                     user.getInsertDate());
         }

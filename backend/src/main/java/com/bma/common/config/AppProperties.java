@@ -33,8 +33,23 @@ public record AppProperties(
         @NotNull Matching matching,
         @NotNull Oauth oauth,
         @NotNull Mail mail,
-        @NotNull PasswordReset passwordReset
+        @NotNull PasswordReset passwordReset,
+        @NotNull Verification verification
 ) {
+    /**
+     * 인증 설정 (S15 본인인증, BMA-79).
+     *
+     * @param identity 본인인증
+     */
+    public record Verification(Identity identity) {
+        /**
+         * @param provider             인증사 키워드(stub/pass/nice/toss). 업체 확정 전 기본 stub
+         * @param requestExpireMinutes 인증 요청 유효 시간(분)
+         * @param adultAge             성인 기준 만 나이(BMA-19 안건3: 19)
+         */
+        public record Identity(String provider, int requestExpireMinutes, int adultAge) {
+        }
+    }
 
     /**
      * 메일 발송 설정.

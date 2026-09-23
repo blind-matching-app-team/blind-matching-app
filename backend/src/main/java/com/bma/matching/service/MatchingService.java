@@ -46,6 +46,7 @@ import com.bma.safety.repository.UserBlockRepository;
 import com.bma.safety.service.SafetyService;
 import com.bma.user.entity.ProfileImage;
 import com.bma.user.entity.UserPreference;
+import com.bma.user.entity.User;
 import com.bma.user.entity.UserProfile;
 import com.bma.user.repository.UserPreferenceRepository;
 import com.bma.user.repository.UserProfileRepository;
@@ -453,6 +454,13 @@ public class MatchingService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_INCOMPLETE));
         if (!profile.isMatchable()) {
             throw new BusinessException(ErrorCode.PROFILE_INCOMPLETE);
+        }
+        // S4 → S15 관문(BMA-78/79): 본인인증을 마쳐야 매칭 대기열에 들어갈 수 있다. 완료했으면 재인증 없이 통과.
+        boolean identityVerified = userRepository.findByIdAndDeleted(userId, YesNo.N)
+                .map(User::isIdentityVerified)
+                .orElse(false);
+        if (!identityVerified) {
+            throw new BusinessException(ErrorCode.IDENTITY_REQUIRED);
         }
         boolean enabled = preferenceRepository.findByIdAndDeleted(userId, YesNo.N)
                 .map(UserPreference::isMatchingEnabled)
