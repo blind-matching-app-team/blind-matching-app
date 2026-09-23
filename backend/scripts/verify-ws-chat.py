@@ -329,10 +329,13 @@ def main():
           and mb is not None, f"missed={[m.get('content') for m in missed]} live={mb}")
     a.wait_message(2)
 
-    step("9. 하트비트: 서버가 10초 주기로 빈 프레임을 보낸다 (12초 대기)")
+    step("9. 하트비트: 서버가 10초 주기로 빈 프레임을 보낸다 (마지막 쓰기 후 10~20초 사이, 최대 22초 대기)")
     before = a.heartbeats
-    a.pump(12)
-    check("12초 내 서버 하트비트 ≥1", a.heartbeats > before, f"heartbeats={a.heartbeats - before}")
+    a._send_text("\n")  # 클라이언트 쪽 하트비트. 30초(10초×3) 동안 프레임이 없으면 서버가 세션을 닫는다
+    deadline = time.time() + 22
+    while time.time() < deadline and a.heartbeats == before:
+        a.pump(1)
+    check("22초 내 서버 하트비트 ≥1", a.heartbeats > before, f"heartbeats={a.heartbeats - before}")
 
     _, notif_before = req("GET", "/api/v1/notifications?page=0&size=50", tok_a)
     msg_notif_before = sum(1 for x in (notif_before.get("data", {}).get("content") or []) if x.get("eventCode") == "MESSAGE_RECEIVED")
