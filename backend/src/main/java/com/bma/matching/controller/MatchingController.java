@@ -6,7 +6,7 @@ import com.bma.matching.dto.MatchingDtos.ActionRequest;
 import com.bma.matching.dto.MatchingDtos.ActionResult;
 import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
-import com.bma.matching.dto.MatchingDtos.QueueResponse;
+import com.bma.matching.dto.MatchingDtos.QueueStatusResponse;
 import com.bma.matching.dto.MatchingDtos.RematchResponse;
 import com.bma.matching.dto.MatchingDtos.RecommendationResponse;
 import com.bma.matching.service.MatchingService;
@@ -83,10 +83,26 @@ public class MatchingController {
      * @param principal 인증 주체
      * @return 대기열 상태
      */
-    @Operation(summary = "매칭 대기열 참여")
+    @Operation(summary = "매칭 대기열 참여 (S9 진입)",
+            description = "무료 3회/일 → 매칭기회 이용권 순으로 진입 재원을 쓴다(소진 시 409 PAY_006 → 구매 모달). "
+                    + "진입 직후 짝이 있으면 바로 MATCHED 로 응답한다. 이미 대기 중이면 그 항목을 돌려준다.")
     @PostMapping("/matching/queue")
-    public ApiResponse<QueueResponse> joinQueue(@AuthenticationPrincipal CustomUserPrincipal principal) {
+    public ApiResponse<QueueStatusResponse> joinQueue(@AuthenticationPrincipal CustomUserPrincipal principal) {
         return ApiResponse.ok(matchingService.joinQueue(principal.userId()));
+    }
+
+    /**
+     * 현재 대기 상태 조회 (S9 폴링).
+     *
+     * @param principal 인증 주체
+     * @return 상태
+     */
+    @Operation(summary = "매칭 대기 상태 조회 (S9 폴링)",
+            description = "WAITING/MATCHED(matchId·chatRoomId → S10)/TIMEOUT(5분 초과 → S9-06~09)/NONE. "
+                    + "STOMP /user/queue/matching 푸시는 보조이고 이 조회가 정본이다.")
+    @GetMapping("/matching/queue")
+    public ApiResponse<QueueStatusResponse> queueStatus(@AuthenticationPrincipal CustomUserPrincipal principal) {
+        return ApiResponse.ok(matchingService.getQueueStatus(principal.userId()));
     }
 
     /**

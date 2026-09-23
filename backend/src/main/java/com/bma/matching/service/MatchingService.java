@@ -11,7 +11,7 @@ import com.bma.matching.dto.MatchingDtos.ActionRequest;
 import com.bma.matching.dto.MatchingDtos.ActionResult;
 import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
-import com.bma.matching.dto.MatchingDtos.QueueResponse;
+import com.bma.matching.dto.MatchingDtos.QueueStatusResponse;
 import com.bma.matching.dto.MatchingDtos.RematchResponse;
 import com.bma.matching.dto.MatchingDtos.RecommendationResponse;
 import com.bma.matching.dto.MatchingDtos.RevealSummary;
@@ -101,6 +101,8 @@ public class MatchingService {
     private final NotificationService notificationService;
     private final AppProperties properties;
     private final ItemWalletService walletService;
+    private final MatchCreationService matchCreationService;
+    private final QueueMatchingService queueMatchingService;
 
     /**
      * 추천 후보를 조회한다.
@@ -195,21 +197,9 @@ public class MatchingService {
             return new ActionResult(targetUserId, request.actionType(), false, null, null);
         }
 
-        Match match = createOrGetMatch(userId, targetUserId);
-        ChatRoom room = chatService.createRoomForMatch(match.getId(), userId, targetUserId);
-        revealService.initializeProgress(match.getId());
-        closeQueueEntries(userId, targetUserId);
-
-        notificationService.notifyAll(List.of(userId, targetUserId),
-                NotificationEvent.MATCH_CREATED,
-                "매칭이 성사되었어요!",
-                "이제 대화를 시작할 수 있습니다. 대화를 나눌수록 상대의 프로필이 더 공개됩니다.",
-                "MATCH", match.getId());
-
-        log.info("매칭 성사: matchId={}, users=[{}, {}], roomId={}",
-                match.getId(), userId, targetUserId, room.getId());
-
-        return new ActionResult(targetUserId, request.actionType(), true, match.getId(), room.getId());
+        MatchCreationService.MatchCreated created = matchCreationService.create(userId, targetUserId, Match.TYPE_LIKE);
+        return new ActionResult(targetUserId, request.actionType(), true,
+                created.match().getId(), created.room().getId());
     }
 
     /**
@@ -419,22 +409,29 @@ public class MatchingService {
     }
 
     /**
-     * 매칭 대기열에 참여한다.
+     * 매칭 대기열에 참여한다 (S9 진입).
      *
      * <p>진입 재원(BMA-17 "매칭 기회"): 하루 무료 횟수({@code app.matching.daily-free-chances})가 남았으면
      * 무료로, 다 썼으면 매칭기회 이용권 1개를 소모한다. 둘 다 없으면 {@code PAY_006} 을 던져 프론트가
-     * 구매 모달(소모형 탭)을 열게 한다. 이미 대기 중이면 새로 소모하지 않고 그 항목을 돌려준다.</p>
+     * 구매 모달(소모형 탭)을 열게 한다. 이미 대기 중이면 새로 소모하지 않고 그 항목을 돌려준다.
+     * 진입 직후 한 번 짝을 찾아보고, 있으면 바로 {@code MATCHED} 로 응답한다.</p>
      *
      * @param userId 요청자
-     * @return 대기열 상태
-     * @throws BusinessException 프로필 미완성, 매칭 기회 소진
+     * @return 대기 상태(WAITING 또는 즉시 MATCHED)
+     * @throws BusinessException 프로필 미완성, 매칭 참여 꺼짐, 매칭 기회 소진
      */
     @Transactional
-    public QueueResponse joinQueue(Long userId) {
+    public QueueStatusResponse joinQueue(Long userId) {
         UserProfile profile = profileRepository.findByIdAndDeleted(userId, YesNo.N)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_INCOMPLETE));
         if (!profile.isMatchable()) {
             throw new BusinessException(ErrorCode.PROFILE_INCOMPLETE);
+        }
+        boolean enabled = preferenceRepository.findByIdAndDeleted(userId, YesNo.N)
+                .map(UserPreference::isMatchingEnabled)
+                .orElse(true);
+        if (!enabled) {
+            throw new BusinessException(ErrorCode.MATCHING_DISABLED);
         }
 
         MatchQueue existing = queueRepository
@@ -442,19 +439,31 @@ public class MatchingService {
                 .orElse(null);
         if (existing != null) {
             if (!existing.isExpired()) {
-                return QueueResponse.from(existing);
+                return queueMatchingService.status(existing);
             }
-            // 대기 시간이 지난 항목은 만료 처리하고 새로 진입시킨다. 새 진입은 기회를 다시 소모한다.
-            existing.expire();
+            // 대기 시간이 지난 항목은 만료(환불) 처리하고 새로 진입시킨다.
+            queueMatchingService.expire(existing);
         }
-        return QueueResponse.from(enterQueue(userId, null));
+        MatchQueue queue = enterQueue(userId, null);
+        queueMatchingService.tryMatch(queue);
+        return queueMatchingService.status(queue);
+    }
+
+    /**
+     * 현재 대기 상태 (S9 폴링).
+     *
+     * @param userId 요청자
+     * @return 상태. 항목이 없으면 {@code NONE}
+     */
+    public QueueStatusResponse getQueueStatus(Long userId) {
+        return queueMatchingService.currentStatus(userId);
     }
 
     /**
      * 재매칭권을 써서 현재 매칭을 끝내고 대기 없이 바로 대기열에 다시 들어간다 (S5-12, S10-19).
      *
-     * <p>상대에게는 매칭 그만두기와 똑같이 S7-14 종료 알림만 간다. 실제 짝 배정은 대기열 매칭(BMA-66)이
-     * 처리하며, 이 진입은 무료 일일 기회를 쓰지 않는다.</p>
+     * <p>상대에게는 매칭 그만두기와 똑같이 S7-14 종료 알림만 간다. 진입 직후 짝을 찾아보며,
+     * 이 진입은 무료 일일 기회를 쓰지 않는다. 5분 안에 짝이 없으면 재매칭권은 돌려준다.</p>
      *
      * @param userId  요청자
      * @param matchId 끝낼 매칭
@@ -483,21 +492,22 @@ public class MatchingService {
                 .ifPresent(MatchQueue::cancel);
         MatchQueue queue = queueRepository.save(
                 MatchQueue.enter(userId, properties.matching().queueExpireMinutes(), MatchQueue.SOURCE_REMATCH));
+        queueMatchingService.tryMatch(queue);
 
         log.info("재매칭권 사용: userId={}, endedMatchId={}, queueId={}", userId, matchId, queue.getId());
-        return new RematchResponse(matchId, QueueResponse.from(queue),
+        return new RematchResponse(matchId, queueMatchingService.status(queue),
                 walletService.balance(userId, ItemType.REMATCH_TICKET));
     }
 
     /**
-     * 오늘 무료 기회로 대기열에 들어간 횟수.
+     * 오늘 무료 기회로 대기열에 들어간 횟수. 짝을 못 찾고 만료된 항목은 세지 않는다(재시도가 손해가 아니게).
      *
      * @param userId 사용자
      * @return 횟수
      */
     public int freeChancesUsedToday(Long userId) {
-        return (int) queueRepository.countByUserIdAndEnterDateGreaterThanEqualAndEntrySourceAndDeleted(
-                userId, LocalDate.now().atStartOfDay(), MatchQueue.SOURCE_FREE, YesNo.N);
+        return (int) queueRepository.countByUserIdAndEnterDateGreaterThanEqualAndEntrySourceAndQueueStatusNotAndDeleted(
+                userId, LocalDate.now().atStartOfDay(), MatchQueue.SOURCE_FREE, MatchQueue.STATUS_EXPIRED, YesNo.N);
     }
 
     /**
@@ -529,47 +539,6 @@ public class MatchingService {
         queueRepository
                 .findFirstByUserIdAndQueueStatusAndDeleted(userId, MatchQueue.STATUS_WAITING, YesNo.N)
                 .ifPresent(MatchQueue::cancel);
-    }
-
-    /**
-     * 매칭을 만들거나, 이미 있으면 그것을 되살려 반환한다.
-     *
-     * <p>{@code UK_MT_MATCH_USERS}가 (작은 ID, 큰 ID) 기준이므로 정렬된 값으로 조회한다.
-     * 해제 후 다시 서로 좋아요를 누른 경우에는 기존 행을 재활성화한다.</p>
-     *
-     * @param userIdA 참여자 A
-     * @param userIdB 참여자 B
-     * @return 매칭
-     */
-    private Match createOrGetMatch(Long userIdA, Long userIdB) {
-        Long smaller = Math.min(userIdA, userIdB);
-        Long larger = Math.max(userIdA, userIdB);
-
-        Optional<Match> existing = matchRepository.findByUser1IdAndUser2Id(smaller, larger);
-        if (existing.isPresent()) {
-            Match match = existing.get();
-            if (!match.isActive()) {
-                match.setMatchStatus(Match.STATUS_ACTIVE);
-                match.setEndDate(null);
-                match.setEndUserId(null);
-                match.setEndReasonCode(null);
-                match.restore();
-            }
-            return match;
-        }
-        return matchRepository.save(Match.between(smaller, larger, Match.TYPE_LIKE));
-    }
-
-    /**
-     * 매칭이 성사된 두 사용자의 대기열 항목을 종료 처리한다.
-     *
-     * @param userIdA 참여자 A
-     * @param userIdB 참여자 B
-     */
-    private void closeQueueEntries(Long userIdA, Long userIdB) {
-        List.of(userIdA, userIdB).forEach(userId -> queueRepository
-                .findFirstByUserIdAndQueueStatusAndDeleted(userId, MatchQueue.STATUS_WAITING, YesNo.N)
-                .ifPresent(queue -> queue.setQueueStatus(MatchQueue.STATUS_MATCHED)));
     }
 
     /**

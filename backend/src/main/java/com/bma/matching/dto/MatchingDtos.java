@@ -157,40 +157,54 @@ public final class MatchingDtos {
     }
 
     /**
-     * 매칭 대기열 상태 응답.
+     * 매칭 대기 상태 (S9). 진입·폴링·재매칭 응답이 공유한다.
      *
-     * @param queueId     대기열 ID
-     * @param queueStatus 상태
-     * @param entrySource 진입 재원 FREE(무료 일일 기회)/ITEM(매칭기회 이용권)/REMATCH(재매칭권)
-     * @param enterDate   진입 일시
-     * @param expireDate  만료 예정 일시
+     * @param status           WAITING(대기 중) / MATCHED(성사 → S10) / TIMEOUT(5분 초과 → S9-06~09) / NONE(대기 항목 없음)
+     * @param queueId          대기열 항목 ID
+     * @param entrySource      진입 재원 FREE(무료 일일 기회)/ITEM(매칭기회 이용권)/REMATCH(재매칭권)
+     * @param enteredAt        진입 일시
+     * @param expiresAt        타임아웃 예정 일시
+     * @param waitedSeconds    경과 시간(초). S9-04 표시 초기값
+     * @param remainingSeconds 타임아웃까지 남은 시간(초). WAITING 이 아니면 0
+     * @param matchId          성사된 매칭(MATCHED 일 때)
+     * @param chatRoomId       채팅방(MATCHED 일 때)
+     * @param partnerUserId    상대(MATCHED 일 때)
      */
-    public record QueueResponse(Long queueId,
-                                String queueStatus,
-                                String entrySource,
-                                LocalDateTime enterDate,
-                                LocalDateTime expireDate) {
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record QueueStatusResponse(String status,
+                                      Long queueId,
+                                      String entrySource,
+                                      LocalDateTime enteredAt,
+                                      LocalDateTime expiresAt,
+                                      long waitedSeconds,
+                                      long remainingSeconds,
+                                      Long matchId,
+                                      Long chatRoomId,
+                                      Long partnerUserId) {
+
+        public static final String WAITING = "WAITING";
+        public static final String MATCHED = "MATCHED";
+        public static final String TIMEOUT = "TIMEOUT";
+        public static final String NONE = "NONE";
 
         /**
-         * 엔티티를 응답 DTO로 변환한다.
+         * 대기 항목이 없는 상태.
          *
-         * @param queue 대기열 엔티티
-         * @return 응답 DTO
+         * @return status=NONE
          */
-        public static QueueResponse from(MatchQueue queue) {
-            return new QueueResponse(queue.getId(), queue.getQueueStatus(), queue.getEntrySource(),
-                    queue.getEnterDate(), queue.getExpireDate());
+        public static QueueStatusResponse none() {
+            return new QueueStatusResponse(NONE, null, null, null, null, 0, 0, null, null, null);
         }
     }
 
     /**
      * 재매칭권 사용 결과 (S5-12, S10-19).
      *
-     * @param endedMatchId          종료된 매칭 ID
-     * @param queue                 즉시 재진입한 대기열
+     * @param endedMatchId            종료된 매칭 ID
+     * @param queue                   즉시 재진입한 대기열 상태(짝이 바로 있으면 MATCHED)
      * @param remainingRematchTickets 남은 재매칭권
      */
     @JsonInclude(JsonInclude.Include.ALWAYS)
-    public record RematchResponse(Long endedMatchId, QueueResponse queue, int remainingRematchTickets) {
+    public record RematchResponse(Long endedMatchId, QueueStatusResponse queue, int remainingRematchTickets) {
     }
 }

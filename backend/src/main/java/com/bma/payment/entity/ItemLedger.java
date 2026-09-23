@@ -28,6 +28,7 @@ public class ItemLedger extends BaseAuditEntity {
     public static final String REASON_GRANT = "GRANT";
     public static final String REASON_USE = "USE";
     public static final String REASON_EXPIRE = "EXPIRE";
+    public static final String REASON_REFUND = "REFUND";
 
     public static final String REF_PAYMENT = "PAYMENT";
     public static final String REF_SUBSCRIPTION = "SUBSCRIPTION";

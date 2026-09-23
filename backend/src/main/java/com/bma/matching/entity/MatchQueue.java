@@ -73,6 +73,14 @@ public class MatchQueue extends BaseAuditEntity {
     @Column(name = "EXPIRE_DATE")
     private LocalDateTime expireDate;
 
+    /** 성사된 매칭 ID (MATCHED 일 때). */
+    @Column(name = "MATCH_ID")
+    private Long matchId;
+
+    /** 매칭 성사 일시. */
+    @Column(name = "MATCHED_DATE")
+    private LocalDateTime matchedDate;
+
     /**
      * 대기열 항목을 만든다.
      *
@@ -107,5 +115,25 @@ public class MatchQueue extends BaseAuditEntity {
     /** 대기 시간 만료를 기록한다. */
     public void expire() {
         this.queueStatus = STATUS_EXPIRED;
+    }
+
+    /**
+     * 매칭이 성사되어 대기를 끝낸다.
+     *
+     * @param matchId 성사된 매칭
+     */
+    public void matchWith(Long matchId) {
+        this.queueStatus = STATUS_MATCHED;
+        this.matchId = matchId;
+        this.matchedDate = LocalDateTime.now();
+    }
+
+    /**
+     * 아직 대기 중인지(만료 시각과 무관).
+     *
+     * @return WAITING 이고 삭제되지 않았으면 {@code true}
+     */
+    public boolean isWaiting() {
+        return STATUS_WAITING.equals(queueStatus) && !isDeleted();
     }
 }
