@@ -455,6 +455,8 @@ public class MatchingService {
      * @param userId 요청자
      * @return 상태. 항목이 없으면 {@code NONE}
      */
+    // 클래스 기본이 readOnly 라 여기서 풀어야 만료(환불) 처리가 실제로 저장된다.
+    @Transactional
     public QueueStatusResponse getQueueStatus(Long userId) {
         return queueMatchingService.currentStatus(userId);
     }

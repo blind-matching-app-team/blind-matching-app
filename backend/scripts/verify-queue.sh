@@ -113,7 +113,7 @@ req POST /api/v1/auth/signup "" "{\"email\":\"bma66-x-$TS@example.com\",\"passwo
 check "400 MATCH_005, 401" "" "$([ "$C1" = 400 ] && [ "$R1" = MATCH_005 ] && [ "$CODE" = 401 ] && echo true)"
 
 step "18. 정리: 남은 대기 항목 취소 (다른 스위트와 섞이지 않게)"
-for t in "$TOK_A" "$TOK_B" "$TOK_C" "$TOK_D" "$TOK_E" "$TOK_F" "$TOK_G" "$TOK_H" "$TOK_K"; do [ -n "$t" ] && req DELETE $Q "$t"; done; req GET $Q "$TOK_K"
+for t in "$TOK_A" "$TOK_B" "$TOK_C" "$TOK_D" "$TOK_E" "$TOK_F" "$TOK_G" "$TOK_H" "$TOK_K"; do [ -n "$t" ] && req DELETE $Q "$t"; done; req DELETE /api/v1/payments/subscription "$TOK_A"; req GET $Q "$TOK_K"
 check "K 조회 200 (WAITING 아님)" "" "$([ "$CODE" = 200 ] && [ "$(field status)" != WAITING ] && echo true)"
 
 rm -f /tmp/body.$$ /tmp/req.$$
