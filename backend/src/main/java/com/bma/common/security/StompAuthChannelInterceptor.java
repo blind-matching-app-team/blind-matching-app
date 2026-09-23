@@ -45,6 +45,9 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     /** Bearer 토큰 접두사. */
     private static final String BEARER_PREFIX = "Bearer ";
 
+    /** 대기열 결과 푸시(S9). 사용자 자신의 큐라 방 권한 검사가 없다. */
+    private static final String USER_QUEUE_MATCHING = "/user/queue/matching";
+
     private final JwtTokenProvider tokenProvider;
     private final ChatRoomAccessChecker chatRoomAccessChecker;
 
@@ -58,7 +61,13 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         StompCommand command = accessor.getCommand();
         switch (command) {
             case CONNECT -> authenticate(accessor);
-            case SUBSCRIBE -> authorizeDestination(accessor, accessor.getDestination(), TOPIC_CHAT_PATTERN);
+            case SUBSCRIBE -> {
+                if (USER_QUEUE_MATCHING.equals(accessor.getDestination())) {
+                    currentPrincipal(accessor);
+                } else {
+                    authorizeDestination(accessor, accessor.getDestination(), TOPIC_CHAT_PATTERN);
+                }
+            }
             case SEND -> authorizeDestination(accessor, accessor.getDestination(), APP_CHAT_PATTERN);
             default -> {
                 // DISCONNECT, ACK 등은 추가 검증이 필요 없다.

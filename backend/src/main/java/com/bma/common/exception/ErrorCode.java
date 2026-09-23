@@ -107,6 +107,8 @@ public enum ErrorCode {
     BLOCKED_RELATION(HttpStatus.FORBIDDEN, "MATCH_004", "차단된 상대와는 진행할 수 없습니다."),
     /** 프로필이 완성되지 않아 매칭에 참여할 수 없음. */
     PROFILE_INCOMPLETE(HttpStatus.BAD_REQUEST, "MATCH_005", "프로필을 완성해야 매칭에 참여할 수 있습니다."),
+    /** 선호 조건에서 매칭 참여를 꺼 둔 사용자의 대기열 진입. */
+    MATCHING_DISABLED(HttpStatus.CONFLICT, "MATCH_006", "매칭 참여가 꺼져 있어요. 선호 조건에서 켜 주세요."),
 
     // ── 채팅 ────────────────────────────────────────────────────────────────
     /** 채팅방을 찾을 수 없음. */

@@ -159,7 +159,10 @@ app:
 
   matching:
     recommendation-max-size: 50
-    queue-expire-minutes: 30
+    # S9 대기 타임아웃(BMA-65 확정 5분). 지나면 EXPIRED 로 바꾸고 소모한 이용권을 돌려준다.
+    queue-expire-minutes: ${MATCHING_QUEUE_EXPIRE_MINUTES:5}
+    # 대기열 스윕 주기(ms): 만료 처리 + 짝 재시도.
+    queue-sweep-ms: ${MATCHING_QUEUE_SWEEP_MS:5000}
     # 하루에 무료로 매칭 대기열에 들어갈 수 있는 횟수(BMA-17 "매칭 기회"). 넘기면 매칭기회 이용권을 소모한다.
     daily-free-chances: ${MATCHING_DAILY_FREE_CHANCES:3}
 

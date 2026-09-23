@@ -116,11 +116,11 @@ if [ -n "$ADMIN_PROMOTE_CMD" ]; then
   req POST "/api/v1/admin/payments/subscriptions/renew?asOf=$NBD" "$TOK_ADM"; C1=$CODE; RN=$(field renewed); DUE=$(field due)
   req GET $PAY/subscription "$TOK_A"; NBD2=$(field nextBillingDate); PEND2=$(field currentPeriodEnd); S_OK=$([ "$(field currentPeriodStart)" = "$NBD" ] && [ "$NBD2" \> "$NBD" ] && [ "$(field status)" = ACTIVE ] && echo true)
   req GET $ITEMS "$TOK_A"
-  check "200 due=1 renewed=1, 기간 시작=옛 청구일, MATCH_CHANCE granted=6, REMATCH granted=3 total=4" "" "$([ "$C1" = 200 ] && [ "$DUE" = 1 ] && [ "$RN" = 1 ] && [ "$S_OK" = true ] && [ "$(item_bal MATCH_CHANCE granted)" = 6 ] && [ "$(item_bal REMATCH_TICKET granted)" = 3 ] && [ "$(item_bal REMATCH_TICKET total)" = 4 ] && echo true)"
+  check "200 due≥1 renewed≥1(배치는 전체 구독 대상), 기간 시작=옛 청구일, MATCH_CHANCE granted=6, REMATCH granted=3 total=4" "" "$([ "$C1" = 200 ] && [ "${DUE:-0}" -ge 1 ] && [ "${RN:-0}" -ge 1 ] && [ "$S_OK" = true ] && [ "$(item_bal MATCH_CHANCE granted)" = 6 ] && [ "$(item_bal REMATCH_TICKET granted)" = 3 ] && [ "$(item_bal REMATCH_TICKET total)" = 4 ] && echo true)"
 
   step "21. 청구 배치 2회차: 이월 상한(2개월치) 초과분 소멸 → MATCH_CHANCE 6 유지, REMATCH 4 (각 3·1 소멸)"
   req POST "/api/v1/admin/payments/subscriptions/renew?asOf=$NBD2" "$TOK_ADM"; RN=$(field renewed); req GET $ITEMS "$TOK_A"
-  check "renewed=1, MATCH_CHANCE granted=6 total=6, REMATCH granted=4 total=5" "" "$([ "$RN" = 1 ] && [ "$(item_bal MATCH_CHANCE granted)" = 6 ] && [ "$(item_bal MATCH_CHANCE total)" = 6 ] && [ "$(item_bal REMATCH_TICKET granted)" = 4 ] && [ "$(item_bal REMATCH_TICKET total)" = 5 ] && echo true)"
+  check "renewed≥1, MATCH_CHANCE granted=6 total=6, REMATCH granted=4 total=5" "" "$([ "${RN:-0}" -ge 1 ] && [ "$(item_bal MATCH_CHANCE granted)" = 6 ] && [ "$(item_bal MATCH_CHANCE total)" = 6 ] && [ "$(item_bal REMATCH_TICKET granted)" = 4 ] && [ "$(item_bal REMATCH_TICKET total)" = 5 ] && echo true)"
 
   step "22. 같은 기준일로 배치 재실행 → 청구 대상 0 (멱등), 결제 내역에 구독 청구 3건(첫 달+2회)"
   req POST "/api/v1/admin/payments/subscriptions/renew?asOf=$NBD2" "$TOK_ADM"; D2=$(field due); req GET $PAY/me "$TOK_A"

@@ -129,6 +129,22 @@ public class ItemWalletService {
         return true;
     }
 
+    /**
+     * 사용했지만 효과가 없었던 이용권을 돌려준다(대기열 5분 타임아웃). 구매분으로 돌려준다.
+     *
+     * @param userId  사용자
+     * @param type    종류
+     * @param refType 원래 사용처 유형
+     * @param refId   원래 사용처 ID
+     */
+    @Transactional
+    public void refund(Long userId, ItemType type, String refType, Long refId) {
+        UserItem item = lockOrCreate(userId, type);
+        item.addPurchased(1);
+        ledgerRepository.save(ItemLedger.of(item, ItemLedger.REASON_REFUND, 1, refType, refId, null));
+        log.info("이용권 환불: userId={}, type={}, ref={}#{}", userId, type, refType, refId);
+    }
+
     private UserItem lockOrCreate(Long userId, ItemType type) {
         return itemRepository.findForUpdate(userId, type.name())
                 .orElseGet(() -> itemRepository.saveAndFlush(UserItem.emptyFor(userId, type)));
