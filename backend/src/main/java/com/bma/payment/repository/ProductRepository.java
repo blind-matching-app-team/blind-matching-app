@@ -32,4 +32,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      * @return 상품
      */
     Optional<Product> findByIdAndUseYnAndDeleted(Long id, String useYn, String deleted);
+
+    Optional<Product> findByProductCodeAndUseYnAndDeleted(String productCode, String useYn, String deleted);
 }

@@ -3,12 +3,18 @@ package com.bma.payment.service;
 import com.bma.common.entity.YesNo;
 import com.bma.common.exception.BusinessException;
 import com.bma.common.exception.ErrorCode;
-import com.bma.payment.dto.PaymentDtos.PaymentRequest;
+import com.bma.payment.dto.PaymentDtos.ConsumablePurchaseRequest;
+import com.bma.payment.dto.PaymentDtos.ConsumablePurchaseResponse;
+import com.bma.payment.dto.PaymentDtos.ItemBalance;
 import com.bma.payment.dto.PaymentDtos.PaymentResponse;
 import com.bma.payment.dto.PaymentDtos.ProductResponse;
+import com.bma.payment.entity.BillingKey;
+import com.bma.payment.entity.ItemType;
 import com.bma.payment.entity.Payment;
 import com.bma.payment.entity.PaymentEvent;
 import com.bma.payment.entity.Product;
+import com.bma.payment.entity.UserItem;
+import com.bma.payment.repository.BillingKeyRepository;
 import com.bma.payment.repository.PaymentEventRepository;
 import com.bma.payment.repository.PaymentRepository;
 import com.bma.payment.repository.ProductRepository;
@@ -19,22 +25,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * 결제 승인 및 웹훅 처리.
- *
- * <p>고친 점 — 기존 {@code PaymentController}에는 결제 시스템의 기본이 빠져 있었다.</p>
- * <ul>
- *   <li><b>멱등성 없음</b>: 같은 주문으로 재요청하면 {@code UK_PY_PAYMENT_ORDER} 위반으로 500이었다.
- *       이제 기존 결제를 찾아 그대로 반환한다.</li>
- *   <li><b>금액 검증 없음</b>: PG가 실제로 승인한 금액을 확인하지 않았다.
- *       이제 상품 가격과 대조해 다르면 거부한다.</li>
- *   <li><b>웹훅이 빈 껍데기</b>: 본문을 받기만 하고 버렸으며, 인증이 필요한 경로에 있어
- *       PG 콜백이 401로 튕겼다. 이제 서명을 검증하고 결제 상태에 반영한다.</li>
- *   <li><b>감사 로그 없음</b>: {@code PY_PAYMENT_EVENT}에 요청/응답 원문을 남긴다.</li>
- *   <li>없는 상품이면 {@code orElseThrow()}로 500이 났다. 이제 404로 응답한다.</li>
- * </ul>
+ * 상품 조회, 소모형 이용권 결제(CM-15), 빌링키 청구 공통 로직, 웹훅.
  */
 @Slf4j
 @Service
@@ -42,28 +39,35 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class PaymentService {
 
+    private static final String ORDER_ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentEventRepository eventRepository;
+    private final BillingKeyRepository billingKeyRepository;
     private final PaymentGateway paymentGateway;
+    private final ProductBenefits productBenefits;
+    private final ItemWalletService walletService;
+    private final BillingKeyCipher billingKeyCipher;
     private final ObjectMapper objectMapper;
+    private final SecureRandom random = new SecureRandom();
 
     /**
-     * 판매 중인 상품 목록을 조회한다.
+     * 판매 중인 상품 목록. 구매 모달(CM-13)이 소모형/구독형 탭으로 나눠 그린다.
      *
      * @return 상품 목록
      */
     public List<ProductResponse> getProducts() {
         return productRepository.findByUseYnAndDeletedOrderByIdAsc(YesNo.Y, YesNo.N).stream()
-                .map(ProductResponse::from)
+                .map(p -> ProductResponse.of(p, productBenefits.parse(p).raw()))
                 .toList();
     }
 
     /**
-     * 내 결제 내역을 조회한다.
+     * 내 결제 내역(최신순).
      *
-     * @param userId 사용자 ID
-     * @return 결제 목록(최신순)
+     * @param userId 사용자
+     * @return 결제 목록
      */
     public List<PaymentResponse> getMyPayments(Long userId) {
         return paymentRepository.findByUserIdAndDeletedOrderByIdDesc(userId, YesNo.N).stream()
@@ -72,92 +76,148 @@ public class PaymentService {
     }
 
     /**
-     * 결제를 승인한다.
+     * 소모형 이용권 단건 결제 (CM-15).
      *
-     * @param userId  결제자
-     * @param request 결제 요청
-     * @return 결제 결과
-     * @throws BusinessException 상품이 없거나, 주문 소유자가 다르거나, 금액이 어긋나거나, 승인이 실패한 경우
+     * <p>결제창 승인({@code paymentKey})이면 같은 주문 ID 재요청에 기존 결제를 그대로 돌려준다(멱등).
+     * 저장 카드 청구면 서버가 주문 ID 를 만든다. 승인 금액은 항상 서버의 상품 가격과 대조한다.</p>
+     *
+     * @param userId  사용자
+     * @param request 요청
+     * @return 결제와 결제 후 잔여
      */
-    @Transactional
-    public PaymentResponse pay(Long userId, PaymentRequest request) {
-        Product product = productRepository
-                .findByIdAndUseYnAndDeleted(request.productId(), YesNo.Y, YesNo.N)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+    // 승인 실패(PAY_002)를 던져도 결제 원장의 FAILED 행과 이벤트는 남긴다.
+    @Transactional(noRollbackFor = BusinessException.class)
+    public ConsumablePurchaseResponse purchaseConsumable(Long userId, ConsumablePurchaseRequest request) {
+        Product product = findOnSale(request.productCode(), ProductBenefits.TYPE_ITEM);
+        ProductBenefits.Benefit benefit = productBenefits.parse(product);
+        ItemType itemType = ItemType.of(benefit.itemType());
+        if (itemType == null || benefit.quantity() <= 0) {
+            throw new IllegalStateException("소모형 상품의 혜택 구성이 잘못되었습니다: " + product.getProductCode());
+        }
 
-        // 멱등 처리: 같은 주문 ID가 이미 승인되었으면 그대로 반환한다.
-        // 네트워크 재시도나 사용자의 중복 클릭으로 이중 결제가 발생하지 않게 한다.
-        Payment existing = paymentRepository.findByOrderId(request.orderId()).orElse(null);
-        if (existing != null) {
-            if (!existing.getUserId().equals(userId)) {
-                // 남의 주문 ID로 결제를 가로채려는 시도.
-                log.warn("타인의 주문 ID로 결제 시도: userId={}, orderId={}", userId, request.orderId());
-                throw new BusinessException(ErrorCode.PAYMENT_NOT_FOUND);
+        Payment payment;
+        if (request.hasWidgetPayment()) {
+            if (request.orderId() == null || request.orderId().isBlank()) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "결제창 승인에는 주문 ID가 필요합니다.");
             }
-            if (existing.isApproved()) {
-                log.info("이미 승인된 결제 재요청(멱등 반환): orderId={}", request.orderId());
-                return PaymentResponse.from(existing);
+            Payment existing = paymentRepository.findByOrderId(request.orderId()).orElse(null);
+            if (existing != null) {
+                if (!existing.getUserId().equals(userId)) {
+                    // 남의 주문 ID로 결제를 가로채려는 시도.
+                    log.warn("타인의 주문 ID로 결제 시도: userId={}, orderId={}", userId, request.orderId());
+                    throw new BusinessException(ErrorCode.PAYMENT_NOT_FOUND);
+                }
+                if (existing.isApproved()) {
+                    // 이미 승인·지급까지 끝난 주문. 이용권을 다시 주지 않는다.
+                    log.info("이미 승인된 결제 재요청(멱등 반환): orderId={}", request.orderId());
+                    return new ConsumablePurchaseResponse(PaymentResponse.from(existing), balances(userId));
+                }
             }
+            payment = existing != null ? existing
+                    : paymentRepository.save(Payment.ready(userId, product, Payment.KIND_CONSUMABLE,
+                    Payment.METHOD_WIDGET, request.orderId(), product.getProductName()));
+            recordEvent(payment.getId(), PaymentEvent.TYPE_REQUEST, PaymentEvent.STATUS_SUCCESS,
+                    null, toJson(request), null, null);
+            approveWidget(payment, product, request.paymentKey());
+        } else {
+            payment = chargeWithBillingKey(userId, product, Payment.KIND_CONSUMABLE, null, product.getProductName());
         }
 
-        // 금액은 항상 서버가 상품 가격으로 결정한다. 클라이언트는 금액을 보내지 않는다.
-        Payment payment = (existing != null) ? existing : paymentRepository.save(
-                Payment.ready(userId, product.getId(), request.orderId(),
-                        product.getPrice(), product.getCurrencyCode()));
-
-        recordEvent(payment.getId(), PaymentEvent.TYPE_REQUEST, PaymentEvent.STATUS_SUCCESS,
-                null, toJson(request), null, null);
-
-        PaymentGateway.Approval approval;
-        try {
-            approval = paymentGateway.approve(request.orderId(), request.paymentKey(), product.getPrice());
-        } catch (Exception e) {
-            payment.fail("GATEWAY_ERROR", e.getMessage());
-            recordEvent(payment.getId(), PaymentEvent.TYPE_APPROVE, PaymentEvent.STATUS_FAIL,
-                    null, toJson(request), null, e.getMessage());
-            log.error("결제 승인 중 게이트웨이 오류: orderId={}", request.orderId(), e);
-            throw new BusinessException(ErrorCode.PAYMENT_FAILED);
-        }
-
-        if (!approval.isDone()) {
-            payment.fail("NOT_APPROVED", "PG 상태: " + approval.status());
-            recordEvent(payment.getId(), PaymentEvent.TYPE_APPROVE, PaymentEvent.STATUS_FAIL,
-                    null, toJson(request), approval.rawResponse(), "승인되지 않은 상태: " + approval.status());
-            throw new BusinessException(ErrorCode.PAYMENT_FAILED);
-        }
-
-        // PG가 실제로 승인한 금액이 상품 가격과 같은지 반드시 대조한다.
-        // compareTo를 쓰는 이유: BigDecimal의 equals는 소수점 스케일까지 비교하므로
-        // 1000 과 1000.00 을 다른 값으로 판단한다.
-        if (approval.amount() == null || approval.amount().compareTo(product.getPrice()) != 0) {
-            payment.fail("AMOUNT_MISMATCH",
-                    "기대 금액=" + product.getPrice() + ", 승인 금액=" + approval.amount());
-            recordEvent(payment.getId(), PaymentEvent.TYPE_APPROVE, PaymentEvent.STATUS_FAIL,
-                    null, toJson(request), approval.rawResponse(), "결제 금액 불일치");
-            log.error("결제 금액 불일치: orderId={}, 기대={}, 승인={}",
-                    request.orderId(), product.getPrice(), approval.amount());
-            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
-        }
-
-        payment.approve(approval.paymentKey());
-        recordEvent(payment.getId(), PaymentEvent.TYPE_APPROVE, PaymentEvent.STATUS_SUCCESS,
-                null, toJson(request), approval.rawResponse(), null);
-
-        log.info("결제 승인 완료: paymentId={}, orderId={}, amount={}",
-                payment.getId(), payment.getOrderId(), payment.getAmount());
-        return PaymentResponse.from(payment);
+        walletService.addPurchased(userId, itemType, benefit.quantity(), payment.getId());
+        log.info("소모형 결제 완료: userId={}, product={}, paymentId={}", userId, product.getProductCode(), payment.getId());
+        return new ConsumablePurchaseResponse(PaymentResponse.from(payment), balances(userId));
     }
 
     /**
-     * PG 웹훅을 처리한다.
+     * 저장된 빌링키로 청구한다. 구독 첫 결제·갱신과 소모형 저장카드 결제가 공유한다.
      *
-     * <p>이 메서드는 인증되지 않은 외부 요청을 받으므로, 서명 검증이 유일한 신뢰 근거다.
-     * 또한 PG는 같은 이벤트를 여러 번 보낼 수 있으므로 멱등성 키로 중복 처리를 막는다.</p>
+     * <p>실패하면 결제 원장에 FAILED 로 남기고 {@link BusinessException}(PAY_002)을 던진다.
+     * 호출자는 트랜잭션 경계를 어떻게 잡느냐에 따라 실패 행을 남길지 결정한다.</p>
      *
-     * @param rawBody   요청 본문 원문(서명 검증을 위해 파싱 전 문자열이 필요하다)
-     * @param signature 요청 헤더의 서명
-     * @throws BusinessException 서명 검증에 실패한 경우
+     * @param userId         사용자
+     * @param product        상품
+     * @param kind           결제 종류
+     * @param subscriptionId 구독 청구면 구독 ID
+     * @param orderName      주문명
+     * @return 승인된 결제
      */
+    @Transactional(noRollbackFor = BusinessException.class)
+    public Payment chargeWithBillingKey(Long userId, Product product, String kind, Long subscriptionId,
+                                        String orderName) {
+        BillingKey key = billingKeyRepository.findByUserId(userId)
+                .filter(BillingKey::isUsable)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BILLING_KEY_NOT_FOUND));
+
+        Payment payment = paymentRepository.save(Payment.ready(userId, product, kind, Payment.METHOD_BILLING,
+                newOrderId(userId), orderName));
+        payment.setSubscriptionId(subscriptionId);
+        recordEvent(payment.getId(), PaymentEvent.TYPE_REQUEST, PaymentEvent.STATUS_SUCCESS, null,
+                "{\"method\":\"BILLING\",\"orderId\":\"" + payment.getOrderId() + "\"}", null, null);
+
+        PaymentGateway.Approval approval;
+        try {
+            approval = paymentGateway.chargeBillingKey(billingKeyCipher.decrypt(key.getBillingKeyEnc()),
+                    key.getCustomerKey(), payment.getOrderId(), orderName, product.getPrice());
+        } catch (GatewayException e) {
+            failPayment(payment, e.getCode(), e.getMessage(), null);
+            throw new BusinessException(ErrorCode.PAYMENT_FAILED, "결제에 실패했어요, 다시 시도해주세요. (" + e.getCode() + ")");
+        }
+        verifyAndApprove(payment, product, approval);
+        return payment;
+    }
+
+    /**
+     * 사용자의 빌링키를 발급·저장한다(기존 행이 있으면 새 카드로 덮어쓴다).
+     *
+     * @param userId 사용자
+     * @param issued 게이트웨이가 발급한 빌링키
+     * @return 저장된 행
+     */
+    @Transactional
+    public BillingKey storeBillingKey(Long userId, PaymentGateway.IssuedBillingKey issued) {
+        byte[] enc = billingKeyCipher.encrypt(issued.billingKey());
+        BillingKey key = billingKeyRepository.findByUserId(userId)
+                .map(existing -> {
+                    existing.replace(issued.customerKey(), enc, issued.cardCompany(), issued.cardNumberMasked());
+                    return existing;
+                })
+                .orElseGet(() -> billingKeyRepository.save(BillingKey.issue(userId, issued.customerKey(), enc,
+                        issued.cardCompany(), issued.cardNumberMasked())));
+        recordEvent(null, PaymentEvent.TYPE_REQUEST, PaymentEvent.STATUS_SUCCESS, null,
+                "{\"type\":\"BILLING_KEY_ISSUE\",\"userId\":" + userId + "}", issued.rawResponse(), null);
+        return key;
+    }
+
+    /**
+     * 판매 중인 상품을 코드로 찾는다.
+     *
+     * @param productCode 코드
+     * @param productType 기대하는 유형(ITEM/SUBSCRIPTION)
+     * @return 상품
+     */
+    public Product findOnSale(String productCode, String productType) {
+        return productRepository.findByProductCodeAndUseYnAndDeleted(productCode, YesNo.Y, YesNo.N)
+                .filter(p -> productType.equals(p.getProductType()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+    }
+
+    /**
+     * 종류별 잔여(항상 2종 모두).
+     *
+     * @param userId 사용자
+     * @return 잔여 목록
+     */
+    public List<ItemBalance> balances(Long userId) {
+        Map<String, UserItem> byType = new java.util.HashMap<>();
+        walletService.balances(userId).forEach(i -> byType.put(i.getItemType(), i));
+        List<ItemBalance> result = new ArrayList<>();
+        for (ItemType type : ItemType.values()) {
+            UserItem item = byType.get(type.name());
+            result.add(item == null ? ItemBalance.zero(type.name()) : ItemBalance.from(item));
+        }
+        return result;
+    }
+
     @Transactional
     public void handleWebhook(String rawBody, String signature) {
         if (!paymentGateway.verifyWebhookSignature(rawBody, signature)) {
@@ -169,6 +229,16 @@ public class PaymentService {
         String eventId = textOrNull(payload, "eventId");
         String paymentKey = textOrNull(payload, "paymentKey");
         String status = textOrNull(payload, "status");
+        // 토스 웹훅은 data.paymentKey / data.status 로 감싸서 온다.
+        JsonNode data = payload.get("data");
+        if (data != null && data.isObject()) {
+            if (paymentKey == null) {
+                paymentKey = textOrNull(data, "paymentKey");
+            }
+            if (status == null) {
+                status = textOrNull(data, "status");
+            }
+        }
 
         // 같은 이벤트를 두 번 반영하지 않는다.
         if (eventId != null && eventRepository.existsByIdempotencyKey(eventId)) {
@@ -195,12 +265,49 @@ public class PaymentService {
         log.info("웹훅 반영 완료: paymentId={}, status={}", payment.getId(), status);
     }
 
-    /**
-     * 웹훅이 알려준 상태를 결제에 반영한다.
-     *
-     * @param payment 결제
-     * @param status  PG 상태
-     */
+    private void approveWidget(Payment payment, Product product, String paymentKey) {
+        PaymentGateway.Approval approval;
+        try {
+            approval = paymentGateway.approve(payment.getOrderId(), paymentKey, product.getPrice());
+        } catch (GatewayException e) {
+            failPayment(payment, e.getCode(), e.getMessage(), null);
+            throw new BusinessException(ErrorCode.PAYMENT_FAILED, "결제에 실패했어요, 다시 시도해주세요. (" + e.getCode() + ")");
+        } catch (Exception e) {
+            failPayment(payment, "GATEWAY_ERROR", e.getMessage(), null);
+            log.error("결제 승인 중 게이트웨이 오류: orderId={}", payment.getOrderId(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_FAILED);
+        }
+        verifyAndApprove(payment, product, approval);
+    }
+
+    private void verifyAndApprove(Payment payment, Product product, PaymentGateway.Approval approval) {
+        if (!approval.isDone()) {
+            failPayment(payment, "NOT_APPROVED", "PG 상태: " + approval.status(), approval.rawResponse());
+            throw new BusinessException(ErrorCode.PAYMENT_FAILED);
+        }
+        // PG가 실제로 승인한 금액이 상품 가격과 같은지 반드시 대조한다.
+        // compareTo를 쓰는 이유: BigDecimal의 equals는 소수점 스케일까지 비교하므로
+        // 1000 과 1000.00 을 다른 값으로 판단한다.
+        if (approval.amount() == null || approval.amount().compareTo(product.getPrice()) != 0) {
+            failPayment(payment, "AMOUNT_MISMATCH",
+                    "기대 금액=" + product.getPrice() + ", 승인 금액=" + approval.amount(), approval.rawResponse());
+            log.error("결제 금액 불일치: orderId={}, 기대={}, 승인={}",
+                    payment.getOrderId(), product.getPrice(), approval.amount());
+            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
+        payment.approve(approval.paymentKey());
+        recordEvent(payment.getId(), PaymentEvent.TYPE_APPROVE, PaymentEvent.STATUS_SUCCESS,
+                null, null, approval.rawResponse(), null);
+        log.info("결제 승인 완료: paymentId={}, orderId={}, amount={}",
+                payment.getId(), payment.getOrderId(), payment.getAmount());
+    }
+
+    private void failPayment(Payment payment, String code, String message, String rawResponse) {
+        payment.fail(code, message);
+        recordEvent(payment.getId(), PaymentEvent.TYPE_APPROVE, PaymentEvent.STATUS_FAIL,
+                null, null, rawResponse, code + ": " + message);
+    }
+
     private void applyWebhookStatus(Payment payment, String status) {
         if (status == null) {
             return;
@@ -218,28 +325,36 @@ public class PaymentService {
     }
 
     /**
-     * 결제 이벤트 로그를 남긴다.
-     *
-     * @param paymentId      결제 ID
-     * @param type           이벤트 유형
-     * @param status         처리 결과
-     * @param idempotencyKey 멱등성 키
-     * @param requestJson    요청 원문
-     * @param responseJson   응답 원문
-     * @param errorMessage   오류 메시지
+     * 토스 규칙(6~64자, 영문/숫자/-/_)에 맞는 주문 ID 를 만든다.
      */
+    private String newOrderId(Long userId) {
+        StringBuilder sb = new StringBuilder("bma-").append(userId).append('-')
+                .append(Long.toString(System.currentTimeMillis(), 36)).append('-');
+        for (int i = 0; i < 6; i++) {
+            sb.append(ORDER_ID_ALPHABET.charAt(random.nextInt(ORDER_ID_ALPHABET.length())));
+        }
+        return sb.toString();
+    }
+
     private void recordEvent(Long paymentId, String type, String status, String idempotencyKey,
                              String requestJson, String responseJson, String errorMessage) {
         eventRepository.save(PaymentEvent.of(
-                paymentId, type, status, idempotencyKey, requestJson, responseJson, errorMessage));
+                paymentId, type, status, idempotencyKey, requestJson, safeJson(responseJson), errorMessage));
     }
 
-    /**
-     * 객체를 JSON 문자열로 변환한다. 감사 로그용이므로 실패해도 흐름을 막지 않는다.
-     *
-     * @param value 대상 객체
-     * @return JSON 문자열
-     */
+    /** JSON 컬럼에는 JSON 만 넣을 수 있다. 원문이 JSON 이 아니면 문자열로 감싼다. */
+    private String safeJson(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            objectMapper.readTree(value);
+            return value;
+        } catch (Exception e) {
+            return toJson(value);
+        }
+    }
+
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -249,13 +364,6 @@ public class PaymentService {
         }
     }
 
-    /**
-     * 웹훅 본문을 파싱한다.
-     *
-     * @param rawBody 본문 원문
-     * @return JSON 노드
-     * @throws BusinessException 파싱할 수 없는 본문인 경우
-     */
     private JsonNode parseJson(String rawBody) {
         try {
             return objectMapper.readTree(rawBody);
@@ -264,13 +372,6 @@ public class PaymentService {
         }
     }
 
-    /**
-     * JSON 노드에서 문자열 필드를 꺼낸다.
-     *
-     * @param node  JSON 노드
-     * @param field 필드명
-     * @return 값. 없으면 {@code null}
-     */
     private String textOrNull(JsonNode node, String field) {
         JsonNode value = node.get(field);
         return (value == null || value.isNull()) ? null : value.asText();

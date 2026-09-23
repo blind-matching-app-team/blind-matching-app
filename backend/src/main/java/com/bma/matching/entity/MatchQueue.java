@@ -38,6 +38,15 @@ public class MatchQueue extends BaseAuditEntity {
     /** 대기 시간 만료. */
     public static final String STATUS_EXPIRED = "EXPIRED";
 
+    /** 진입 재원: 하루 무료 기회. */
+    public static final String SOURCE_FREE = "FREE";
+
+    /** 진입 재원: 매칭기회 이용권 1개 소모. */
+    public static final String SOURCE_ITEM = "ITEM";
+
+    /** 진입 재원: 재매칭권 1개 소모(현재 매칭 종료 후 즉시 재진입). */
+    public static final String SOURCE_REMATCH = "REMATCH";
+
     /** 대기열 ID(PK). */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,6 +60,10 @@ public class MatchQueue extends BaseAuditEntity {
     /** 대기 상태. */
     @Column(name = "QUEUE_STATUS", nullable = false, length = 20)
     private String queueStatus = STATUS_WAITING;
+
+    /** 진입 재원(FREE/ITEM/REMATCH). 하루 무료 진입 횟수는 FREE 행만 센다. */
+    @Column(name = "ENTRY_SOURCE", nullable = false, length = 20)
+    private String entrySource = SOURCE_FREE;
 
     /** 대기열 진입 일시. */
     @Column(name = "ENTER_DATE", nullable = false)
@@ -67,9 +80,10 @@ public class MatchQueue extends BaseAuditEntity {
      * @param expireMinutes 만료까지의 분
      * @return 저장 대상 엔티티
      */
-    public static MatchQueue enter(Long userId, int expireMinutes) {
+    public static MatchQueue enter(Long userId, int expireMinutes, String entrySource) {
         MatchQueue queue = new MatchQueue();
         queue.userId = userId;
+        queue.entrySource = entrySource;
         queue.queueStatus = STATUS_WAITING;
         queue.enterDate = LocalDateTime.now();
         queue.expireDate = queue.enterDate.plusMinutes(expireMinutes);

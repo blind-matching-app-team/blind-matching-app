@@ -15,10 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 결제 원장({@code PY_PAYMENT}).
- *
- * <p>{@code UK_PY_PAYMENT_ORDER(ORDER_ID)} 제약이 있어 같은 주문 ID로 두 번 생성할 수 없다.
- * 이 제약을 멱등성 키로 활용한다.</p>
+ * 결제 원장({@code PY_PAYMENT}). 결제창 승인(소모형)과 빌링키 자동결제(소모형 저장카드·구독 청구)를 모두 기록한다.
  */
 @Entity
 @Table(name = "PY_PAYMENT")
@@ -27,95 +24,99 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class Payment extends BaseAuditEntity {
 
-    /** 결제 요청 생성됨(승인 전). */
     public static final String STATUS_READY = "READY";
-
-    /** 승인 완료. */
     public static final String STATUS_DONE = "DONE";
-
-    /** 취소됨. */
     public static final String STATUS_CANCELED = "CANCELED";
-
-    /** 승인 실패. */
     public static final String STATUS_FAILED = "FAILED";
 
-    /** 내부 결제 ID(PK). */
+    /** 소모형 이용권 단건 결제. */
+    public static final String KIND_CONSUMABLE = "CONSUMABLE";
+
+    /** 구독 청구(첫 결제 포함). */
+    public static final String KIND_SUBSCRIPTION = "SUBSCRIPTION";
+
+    /** 결제창(위젯)에서 받은 paymentKey 를 서버가 승인. */
+    public static final String METHOD_WIDGET = "WIDGET";
+
+    /** 저장된 빌링키로 서버가 직접 청구. */
+    public static final String METHOD_BILLING = "BILLING";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "PAYMENT_ID")
     private Long id;
 
-    /** 결제자 ID. */
     @Column(name = "USER_ID", nullable = false)
     private Long userId;
 
-    /** 구매 상품 ID. */
     @Column(name = "PRODUCT_ID", nullable = false)
     private Long productId;
 
-    /** PG 주문 ID. 멱등성 키로 사용한다. */
+    @Column(name = "PAYMENT_KIND", nullable = false, length = 20)
+    private String paymentKind = KIND_CONSUMABLE;
+
+    @Column(name = "PAY_METHOD", length = 20)
+    private String payMethod;
+
     @Column(name = "ORDER_ID", nullable = false, length = 100)
     private String orderId;
 
-    /** PG 결제 키. */
+    @Column(name = "ORDER_NAME", length = 200)
+    private String orderName;
+
     @Column(name = "PAYMENT_KEY", length = 200)
     private String paymentKey;
 
-    /** 결제 상태. */
+    @Column(name = "SUBSCRIPTION_ID")
+    private Long subscriptionId;
+
     @Column(name = "PAYMENT_STATUS", nullable = false, length = 30)
     private String paymentStatus = STATUS_READY;
 
-    /** 결제 금액. 상품 가격에서 서버가 결정한다. */
     @Column(name = "AMOUNT", nullable = false)
     private BigDecimal amount;
 
-    /** 통화 코드. 스키마가 CHAR(3) 이므로 타입을 명시해야 validate 를 통과한다. */
     @Column(name = "CURRENCY_CODE", nullable = false, length = 3, columnDefinition = "CHAR(3)")
     private String currencyCode = "KRW";
 
-    /** 승인 일시. */
     @Column(name = "APPROVED_DATE")
     private LocalDateTime approvedDate;
 
-    /** 취소 일시. */
     @Column(name = "CANCELED_DATE")
     private LocalDateTime canceledDate;
 
-    /** 실패 코드. */
     @Column(name = "FAIL_CODE", length = 100)
     private String failCode;
 
-    /** 실패 메시지. */
     @Column(name = "FAIL_MESSAGE", length = 1000)
     private String failMessage;
 
     /**
-     * 승인 전 결제 요청을 만든다.
+     * 승인 대기 상태의 결제 행을 만든다.
      *
-     * @param userId    결제자
-     * @param productId 상품 ID
+     * @param userId    사용자
+     * @param product   상품
+     * @param kind      결제 종류
+     * @param method    결제 수단
      * @param orderId   주문 ID
-     * @param amount    금액(상품 가격)
-     * @param currency  통화
-     * @return 저장 대상 엔티티
+     * @param orderName 주문명
+     * @return 엔티티
      */
-    public static Payment ready(Long userId, Long productId, String orderId,
-                                BigDecimal amount, String currency) {
+    public static Payment ready(Long userId, Product product, String kind, String method,
+                                String orderId, String orderName) {
         Payment payment = new Payment();
         payment.userId = userId;
-        payment.productId = productId;
+        payment.productId = product.getId();
+        payment.paymentKind = kind;
+        payment.payMethod = method;
         payment.orderId = orderId;
-        payment.amount = amount;
-        payment.currencyCode = currency;
+        payment.orderName = orderName;
+        payment.amount = product.getPrice();
+        payment.currencyCode = product.getCurrencyCode();
         payment.paymentStatus = STATUS_READY;
         return payment;
     }
 
-    /**
-     * 승인 완료로 전이한다.
-     *
-     * @param paymentKey PG 결제 키
-     */
     public void approve(String paymentKey) {
         this.paymentKey = paymentKey;
         this.paymentStatus = STATUS_DONE;
@@ -124,41 +125,21 @@ public class Payment extends BaseAuditEntity {
         this.failMessage = null;
     }
 
-    /**
-     * 실패로 전이한다.
-     *
-     * @param code    실패 코드
-     * @param message 실패 메시지
-     */
     public void fail(String code, String message) {
         this.paymentStatus = STATUS_FAILED;
         this.failCode = code;
         this.failMessage = truncate(message);
     }
 
-    /**
-     * 취소로 전이한다.
-     */
     public void cancel() {
         this.paymentStatus = STATUS_CANCELED;
         this.canceledDate = LocalDateTime.now();
     }
 
-    /**
-     * 이미 승인이 끝난 결제인지 확인한다.
-     *
-     * @return 승인 완료 상태이면 {@code true}
-     */
     public boolean isApproved() {
         return STATUS_DONE.equals(paymentStatus);
     }
 
-    /**
-     * 실패 메시지를 컬럼 길이에 맞게 자른다.
-     *
-     * @param message 원본 메시지
-     * @return 잘린 메시지
-     */
     private String truncate(String message) {
         if (message == null) {
             return null;

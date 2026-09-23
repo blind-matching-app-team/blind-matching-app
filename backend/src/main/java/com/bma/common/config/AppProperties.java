@@ -78,7 +78,17 @@ public record AppProperties(
      * @param gateway       사용할 게이트웨이 구현 키워드(stub/toss 등)
      * @param webhookSecret 웹훅 서명 검증용 시크릿. 비어 있으면 검증을 건너뛰되 경고 로그를 남긴다.
      */
-    public record Payment(String gateway, String webhookSecret, Toss toss) {
+    public record Payment(String gateway, String webhookSecret, String billingKeySecret,
+                          Subscription subscription, Toss toss) {
+
+        /**
+         * 구독 청구 정책.
+         *
+         * @param graceDays 청구 실패 후 재시도를 계속하는 일수. 넘기면 EXPIRED 로 종료한다
+         * @param renewCron 매일 청구 배치 실행 시각(cron)
+         */
+        public record Subscription(int graceDays, String renewCron) {
+        }
 
         /**
          * 토스페이먼츠 접속 정보.
@@ -151,7 +161,8 @@ public record AppProperties(
      *
      * @param recommendationMaxSize 추천 API가 한 번에 반환할 수 있는 최대 건수
      * @param queueExpireMinutes    매칭 대기열 항목이 만료되기까지의 분
+     * @param dailyFreeChances      하루 무료 매칭 대기열 진입 횟수. 넘기면 매칭기회 이용권을 소모한다
      */
-    public record Matching(int recommendationMaxSize, int queueExpireMinutes) {
+    public record Matching(int recommendationMaxSize, int queueExpireMinutes, int dailyFreeChances) {
     }
 }

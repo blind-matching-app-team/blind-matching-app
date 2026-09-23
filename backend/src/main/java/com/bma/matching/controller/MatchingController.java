@@ -7,6 +7,7 @@ import com.bma.matching.dto.MatchingDtos.ActionResult;
 import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
 import com.bma.matching.dto.MatchingDtos.QueueResponse;
+import com.bma.matching.dto.MatchingDtos.RematchResponse;
 import com.bma.matching.dto.MatchingDtos.RecommendationResponse;
 import com.bma.matching.service.MatchingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -144,5 +145,21 @@ public class MatchingController {
                                      @PathVariable Long matchId) {
         matchingService.unmatch(principal.userId(), matchId);
         return ApiResponse.ok();
+    }
+
+    /**
+     * 재매칭권 사용.
+     *
+     * @param principal 인증 주체
+     * @param matchId   끝낼 매칭 ID
+     * @return 종료된 매칭과 새 대기열
+     */
+    @Operation(summary = "재매칭권 사용 (S5-12, S10-19)",
+            description = "재매칭권 1개를 소모해 현재 매칭을 끝내고(상대에게는 종료 알림만) 대기 없이 즉시 대기열에 다시 들어간다. "
+                    + "재매칭권이 없으면 409 PAY_007 → 구매 모달(소모형 탭).")
+    @PostMapping("/matches/{matchId}/rematch")
+    public ApiResponse<RematchResponse> rematch(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                                @PathVariable Long matchId) {
+        return ApiResponse.ok(matchingService.rematch(principal.userId(), matchId));
     }
 }
