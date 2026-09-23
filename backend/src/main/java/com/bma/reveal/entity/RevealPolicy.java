@@ -57,6 +57,14 @@ public class RevealPolicy extends BaseAuditEntity {
     @Column(name = "MUTUAL_CONSENT_YN", nullable = false, columnDefinition = "CHAR(1)")
     private String mutualConsentYn = YesNo.N;
 
+    /** 매칭 후 최소 경과 시간(시간). BMA-19 확정 24. 정밀매칭 구독자는 스킵. */
+    @Column(name = "MIN_HOURS_SINCE_MATCH", nullable = false, columnDefinition = "INT UNSIGNED")
+    private Integer minHoursSinceMatch = 0;
+
+    /** 양측 각자 최소 메시지 수. BMA-19 확정 10(합산 20). */
+    @Column(name = "MIN_MESSAGES_PER_USER", nullable = false, columnDefinition = "INT UNSIGNED")
+    private Integer minMessagesPerUser = 0;
+
     /** 사용 여부. */
     @Column(name = "USE_YN", nullable = false, columnDefinition = "CHAR(1)")
     private String useYn = YesNo.Y;
@@ -68,6 +76,18 @@ public class RevealPolicy extends BaseAuditEntity {
      */
     public boolean requiresMutualConsent() {
         return YesNo.isY(mutualConsentYn);
+    }
+
+    /**
+     * 양측 각자 메시지 조건을 충족했는지 확인한다 (BMA-19: 각자 10개 이상).
+     *
+     * @param myMessages      내가 보낸 수
+     * @param partnerMessages 상대가 보낸 수
+     * @return 둘 다 기준 이상이면 {@code true}
+     */
+    public boolean isMessagesSatisfied(int myMessages, int partnerMessages) {
+        int perUser = minMessagesPerUser == null ? 0 : minMessagesPerUser;
+        return myMessages >= perUser && partnerMessages >= perUser;
     }
 
     /**

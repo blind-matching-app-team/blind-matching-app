@@ -64,7 +64,7 @@ GET /api/v1/matches/current      (인증 필요)
       "commonInterests": ["문화생활", "영화"],
       "reveal": {
         "currentLevel": 0,
-        "currentLevelName": "미공개",
+        "currentLevelName": "실루엣",
         "nextLevel": 1,
         "nextLevelName": "실루엣 및 부분 공개",
         "messageCount": 3,

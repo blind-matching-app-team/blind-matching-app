@@ -10,6 +10,7 @@ import com.bma.common.exception.ErrorCode;
 import com.bma.matching.dto.MatchingDtos.ActionRequest;
 import com.bma.matching.dto.MatchingDtos.ActionResult;
 import com.bma.matching.dto.MatchingDtos.CurrentMatchResponse;
+import com.bma.matching.dto.MatchingDtos.MatchDetailResponse;
 import com.bma.matching.dto.MatchingDtos.MatchResponse;
 import com.bma.matching.dto.MatchingDtos.QueueStatusResponse;
 import com.bma.matching.dto.MatchingDtos.RematchResponse;
@@ -557,5 +558,24 @@ public class MatchingService {
         excluded.addAll(blockRepository.findRelatedUserIds(userId));
         excluded.addAll(matchRepository.findPartnerIds(userId));
         return excluded;
+    }
+
+    /**
+     * 매칭 상세 (S10). 카드 정보 + Reveal 상태 + 보유 재매칭권(S10-19).
+     *
+     * @param userId  요청자
+     * @param matchId 매칭 ID
+     * @return 상세
+     * @throws BusinessException 참여자가 아니거나 종료된 매칭
+     */
+    public MatchDetailResponse getMatchDetail(Long userId, Long matchId) {
+        Match match = matchRepository.findByIdAndParticipant(matchId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        if (!match.isActive()) {
+            throw new BusinessException(ErrorCode.MATCH_NOT_FOUND, "종료된 매칭입니다.");
+        }
+        MatchResponse card = buildMatchResponses(userId, List.of(match)).get(0);
+        return new MatchDetailResponse(card, revealService.getStatus(userId, matchId),
+                walletService.balance(userId, ItemType.REMATCH_TICKET));
     }
 }

@@ -85,6 +85,7 @@ public class ProfileMaskingService {
                 level,
                 // 닉네임은 개인을 특정할 수 있는 단서라 전체 공개 단계에서만 내려준다.
                 fullReveal ? profile.getNickname() : null,
+                maskNickname(profile.getNickname(), level),
                 partialOrAbove ? age : null,
                 toAgeGroup(age),
                 profile.getGenderCode(),
@@ -145,6 +146,21 @@ public class ProfileMaskingService {
      * @param fullReveal 전체 공개 여부
      * @return 노출할 지역 코드
      */
+    /**
+     * 이름 부분 공개(S10-10 "김민??"). 규칙이 미확정이라 앞 절반(최소 1자)만 남기고 나머지를 ? 로 가린다.
+     * 실루엣(0)은 {@code null}, 전체 공개(2)는 원문.
+     */
+    private String maskNickname(String nickname, int level) {
+        if (nickname == null || level < RevealPolicy.LEVEL_PARTIAL) {
+            return null;
+        }
+        if (level >= RevealPolicy.LEVEL_FULL) {
+            return nickname;
+        }
+        int visible = Math.max(1, nickname.length() / 2);
+        return nickname.substring(0, visible) + "?".repeat(nickname.length() - visible);
+    }
+
     private String maskRegion(String regionCode, boolean fullReveal) {
         if (regionCode == null || fullReveal) {
             return regionCode;

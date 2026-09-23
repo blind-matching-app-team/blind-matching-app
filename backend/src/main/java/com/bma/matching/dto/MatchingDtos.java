@@ -207,4 +207,17 @@ public final class MatchingDtos {
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public record RematchResponse(Long endedMatchId, QueueStatusResponse queue, int remainingRematchTickets) {
     }
+
+    /**
+     * 매칭 상세 (S10, BMA-69).
+     *
+     * @param match          S5 카드와 같은 매칭 정보(마스킹된 상대 프로필·공통관심사·채팅방)
+     * @param reveal         Reveal 상태(진행바·칩·동의 모달용)
+     * @param rematchTickets 보유 재매칭권 수 (S10-19 "보유 N개")
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record MatchDetailResponse(MatchResponse match,
+                                      com.bma.reveal.dto.RevealDtos.RevealStatusResponse reveal,
+                                      int rematchTickets) {
+    }
 }

@@ -5,7 +5,9 @@ import com.bma.common.security.CustomUserPrincipal;
 import com.bma.reveal.dto.RevealDtos.ConsentRequest;
 import com.bma.reveal.dto.RevealDtos.ConsentResult;
 import com.bma.reveal.dto.RevealDtos.MaskedProfileResponse;
-import com.bma.reveal.dto.RevealDtos.RevealProgressResponse;
+import com.bma.reveal.dto.RevealDtos.RevealActionResponse;
+import com.bma.reveal.dto.RevealDtos.RevealConsentRequest;
+import com.bma.reveal.dto.RevealDtos.RevealStatusResponse;
 import com.bma.reveal.service.RevealService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,62 +22,55 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 블라인드 해제(Reveal) API.
- *
- * <p>모든 엔드포인트는 요청자가 해당 매칭의 참여자인지 먼저 확인한다.</p>
+ * Reveal API (S10, BMA-69). 매칭 상세 자체는 {@code GET /api/v1/matches/{matchId}} (MatchingController).
  */
-@Tag(name = "Reveal", description = "블라인드 해제 단계 조회 및 동의")
+@Tag(name = "Reveal", description = "블라인드 해제 단계 조회, 다음 단계 요청·동의")
 @RestController
-@RequestMapping("/api/v1/matches/{matchId}/reveal")
+@RequestMapping("/api/v1/matches/{matchId}")
 @RequiredArgsConstructor
 public class RevealController {
 
     private final RevealService revealService;
 
-    /**
-     * 공개 단계 진행 상태 조회.
-     *
-     * @param principal 인증 주체
-     * @param matchId   매칭 ID
-     * @return 진행 상태와 다음 단계 조건
-     */
-    @Operation(summary = "공개 단계 진행 상태 조회")
-    @GetMapping
-    public ApiResponse<RevealProgressResponse> getProgress(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long matchId) {
-        return ApiResponse.ok(revealService.getProgress(principal.userId(), matchId));
+    @Operation(summary = "공개 단계 상태 조회 (S10 진행바·칩·모달)",
+            description = "시간·양측 메시지 조건, 요청 가능 여부(canRequest), 상대 요청 대기(incomingRequest). 구독 여부는 드러나지 않는다.")
+    @GetMapping("/reveal")
+    public ApiResponse<RevealStatusResponse> getStatus(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                                       @PathVariable Long matchId) {
+        return ApiResponse.ok(revealService.getStatus(principal.userId(), matchId));
     }
 
-    /**
-     * 현재 공개 단계에 맞춘 상대 프로필 조회.
-     *
-     * @param principal 인증 주체
-     * @param matchId   매칭 ID
-     * @return 마스킹된 상대 프로필
-     */
-    @Operation(summary = "상대 프로필 조회", description = "현재 공개 단계에 허용된 항목만 반환한다.")
-    @GetMapping("/partner")
-    public ApiResponse<MaskedProfileResponse> getPartnerProfile(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long matchId) {
+    @Operation(summary = "상대 프로필 조회", description = "현재 공개 단계에 허용된 항목만 반환한다(키는 부분 공개부터, 이름은 전체 공개부터).")
+    @GetMapping("/reveal/partner")
+    public ApiResponse<MaskedProfileResponse> getPartnerProfile(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                                                @PathVariable Long matchId) {
         return ApiResponse.ok(revealService.getPartnerProfile(principal.userId(), matchId));
     }
 
-    /**
-     * 다음 공개 단계 동의.
-     *
-     * @param principal 인증 주체
-     * @param matchId   매칭 ID
-     * @param request   동의 요청
-     * @return 처리 결과
-     */
-    @Operation(summary = "공개 단계 동의",
-            description = "대화량 조건을 충족해야 하며, 정책에 따라 상호 동의가 필요할 수 있다.")
-    @PostMapping("/consent")
-    public ApiResponse<ConsentResult> consent(@AuthenticationPrincipal CustomUserPrincipal principal,
-                                              @PathVariable Long matchId,
-                                              @Valid @RequestBody ConsentRequest request) {
-        return ApiResponse.ok(revealService.consent(principal.userId(), matchId, request));
+    @Operation(summary = "다음 단계 요청 (S10-12 칩)",
+            description = "24시간 경과(구독자 스킵) + 양측 각자 10개 이상 메시지일 때만. 요청은 곧 내 동의이며 "
+                    + "상대가 이미 동의했으면 바로 단계가 올라간다. 조건 미충족 409 REVEAL_002, 최고 단계 400 REVEAL_003.")
+    @PostMapping("/reveal-request")
+    public ApiResponse<RevealActionResponse> request(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                                     @PathVariable Long matchId) {
+        return ApiResponse.ok(revealService.request(principal.userId(), matchId));
+    }
+
+    @Operation(summary = "요청에 동의 (S10-16 동의하고 열기 / S10-17 나중에)",
+            description = "consent=true 면 동의 → 양쪽 동의가 되어 단계 상승. false·생략은 '나중에'로 아무것도 기록하지 않는다(상대에게 비노출).")
+    @PostMapping("/reveal-consent")
+    public ApiResponse<RevealActionResponse> consent(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                                     @PathVariable Long matchId,
+                                                     @RequestBody(required = false) RevealConsentRequest request) {
+        boolean accepted = request != null && request.isAccepted();
+        return ApiResponse.ok(revealService.consent(principal.userId(), matchId, accepted));
+    }
+
+    @Operation(summary = "(구) 공개 단계 동의", description = "revealLevel 은 현재 단계 + 1 이어야 한다. reveal-request/reveal-consent 를 쓰는 것을 권장.")
+    @PostMapping("/reveal/consent")
+    public ApiResponse<ConsentResult> consentLegacy(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                                    @PathVariable Long matchId,
+                                                    @Valid @RequestBody ConsentRequest request) {
+        return ApiResponse.ok(revealService.consentLegacy(principal.userId(), matchId, request));
     }
 }
