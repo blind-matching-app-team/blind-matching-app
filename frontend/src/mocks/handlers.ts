@@ -3,8 +3,10 @@ import { passwordResetHandlers } from './passwordReset';
 import { chatHandlers } from './chat';
 import { profileHandlers } from './profile';
 import { preferenceHandlers } from './preferences';
+import { matchingHandlers } from './matching';
 
 export const handlers = [
+  ...matchingHandlers,
   ...preferenceHandlers,
   ...profileHandlers,
   ...chatHandlers,

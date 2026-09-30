@@ -2,6 +2,7 @@ import { passwordResetLoader } from './passwordResetLoader';
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import ErrorPage from '../pages/ErrorPage';
+import MatchingWaitingPage from '../pages/MatchingWaitingPage';
 import AuthPage from '../pages/AuthPage';
 import ChatListPage from '../pages/ChatListPage';
 import ChatPage from '../pages/ChatPage';
@@ -45,7 +46,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/matching/waiting',
-        element: <div style={{ padding: 32 }}>매칭 대기 화면 (S9)</div>,
+        element: <MatchingWaitingPage />,
       },
       {
         path: '/notifications',
