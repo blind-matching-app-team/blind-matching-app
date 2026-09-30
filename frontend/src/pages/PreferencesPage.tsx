@@ -37,7 +37,7 @@ export default function PreferencesPage() {
     setError('');
     try {
       const result = await savePreferences(form);
-      navigate(result.data.identityVerified ? '/' : '/identity-verification');
+      navigate(result.data.identityVerified ? '/matching/waiting' : '/identity-verification');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '저장하지 못했어요. 다시 시도해주세요.');
     } finally {
@@ -160,7 +160,7 @@ export function IdentityVerificationPage() {
     setBusy(true);
     try {
       await completeMockVerification();
-      navigate('/', { replace: true });
+      navigate('/matching/waiting', { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '다시 시도해주세요.');
     } finally {

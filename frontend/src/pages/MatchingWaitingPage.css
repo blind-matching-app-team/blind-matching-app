@@ -1,0 +1,115 @@
+.matching-waiting-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: linear-gradient(180deg, #fffafc, #f9f4f6);
+}
+
+.matching-waiting-card {
+  width: 100%;
+  max-width: 420px;
+  min-height: min(560px, calc(100dvh - 48px));
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #eee0e8;
+  border-radius: 28px;
+  background: #fff;
+}
+
+.matching-back {
+  align-self: flex-start;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a7a88;
+  font-size: 20px;
+}
+
+.matching-waiting-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.matching-pulse {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fbeaf0;
+}
+
+.matching-pulse span {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #ed93b1;
+  animation: matching-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes matching-pulse {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+.matching-empty-icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f1efe8;
+  color: #8a7a88;
+  font-size: 32px;
+}
+
+.matching-waiting-content h1 {
+  margin: 24px 0 0;
+  font-size: 16px;
+  font-weight: 400;
+  color: #3d2b3a;
+  word-break: keep-all;
+}
+
+.matching-waiting-content .matching-empty-title {
+  font-size: 15px;
+}
+.matching-elapsed {
+  margin: 12px 0 0;
+  color: #8a7a88;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.matching-waiting-actions {
+  display: grid;
+  gap: 12px;
+}
+.matching-retry {
+  min-height: 48px;
+}
+.matching-cancel {
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matching-pulse span {
+    animation: none;
+  }
+}

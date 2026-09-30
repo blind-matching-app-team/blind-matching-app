@@ -22,6 +22,7 @@ export default defineConfig({
       testDir: './tests/e2e',
       use: {
         ...devices['Desktop Chrome'],
+        ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
         baseURL: BASE_URL,
       },
     },
