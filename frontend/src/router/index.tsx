@@ -1,6 +1,7 @@
 import { passwordResetLoader } from './passwordResetLoader';
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import ErrorPage from '../pages/ErrorPage';
 import AuthPage from '../pages/AuthPage';
 import ChatListPage from '../pages/ChatListPage';
 import ChatPage from '../pages/ChatPage';
@@ -13,6 +14,7 @@ import SuspendedPage from '../pages/SuspendedPage';
 import PasswordResetPage, { ForgotPasswordPage } from '../pages/PasswordResetPage';
 
 const router = createBrowserRouter([
+  { path: '*', element: <ErrorPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   {
     path: '/reset-password',
