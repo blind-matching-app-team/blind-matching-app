@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLoaderData, useNavigate } from 'react-router-dom';
 import { requestPasswordReset, resetPassword } from '../api/passwordReset';
 import PasswordRules from '../components/PasswordRules';
+import ErrorPage from './ErrorPage';
 import { useToast } from '../components/useToast';
 import { toastMessages } from '../components/feedbackContent';
 import { getPasswordRules } from '../lib/passwordRules';
@@ -152,6 +153,16 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
     }
   }
 
+  if (status === 'expired') {
+    return (
+      <ErrorPage variant="linkExpired">
+        <Link className="ui-interactive text-link" to="/forgot-password">
+          새 재설정 링크 받기
+        </Link>
+      </ErrorPage>
+    );
+  }
+
   if (status !== 'valid') {
     const isNetworkError = status === 'error';
     return (
@@ -160,9 +171,7 @@ function NewPasswordForm({ result }: { result: TokenResult }) {
         description={
           isNetworkError
             ? toastMessages.networkError
-            : status === 'expired'
-              ? '재설정 링크가 만료됐어요. 새 링크를 요청해주세요.'
-              : '유효하지 않거나 이미 사용한 링크예요. 새 링크를 요청해주세요.'
+            : '유효하지 않거나 이미 사용한 링크예요. 새 링크를 요청해주세요.'
         }
       >
         {isNetworkError ? (

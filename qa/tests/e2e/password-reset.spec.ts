@@ -37,10 +37,13 @@ test('direct email link validates the token and changes the password', async ({ 
 for (const token of ['', 'invalid', 'expired-reset-token']) {
   test(`unusable reset link: ${token || 'missing'}`, async ({ page }) => {
     await page.goto(`/reset-password${token ? `?token=${token}` : ''}`);
-    await expect(page.getByRole('heading', { name: '재설정 링크를 사용할 수 없어요' })).toBeVisible();
+    await expect(page.getByRole('heading', {
+      name: token === 'expired-reset-token' ? '링크가 만료됐어요' : '재설정 링크를 사용할 수 없어요',
+    })).toBeVisible();
     await expect(page.getByLabel('새 비밀번호', { exact: true })).toHaveCount(0);
     if (token === 'expired-reset-token') {
-      await expect(page.getByText('재설정 링크가 만료됐어요. 새 링크를 요청해주세요.')).toBeVisible();
+      await expect(page.getByText('비밀번호 재설정 링크는 30분 동안만 유효해요. 다시 시도해주세요')).toBeVisible();
+      await expect(page.getByRole('button', { name: '홈으로 돌아가기' })).toBeVisible();
     }
     await page.getByRole('link', { name: '새 재설정 링크 받기' }).click();
     await expect(page).toHaveURL(/\/forgot-password$/);
