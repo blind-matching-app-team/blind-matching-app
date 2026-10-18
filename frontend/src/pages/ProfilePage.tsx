@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import { clearAuthSession, getUserId } from '../lib/auth';
+import { getMyAccount, getMyPhoto, type MyAccount } from '../api/profile';
 
 import ConfirmModal from '../components/ConfirmModal';
 import { confirmationContent, toastMessages } from '../components/feedbackContent';
@@ -30,15 +31,55 @@ export default function ProfilePage() {
   const showToast = useToast();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [summary, setSummary] = useState<{
+    userId: number | null;
+    account: MyAccount | null;
+    photo: string | null;
+    error: string;
+  } | null>(null);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const currentSummary = summary?.userId === userId ? summary : null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let photoUrl: string | null = null;
+    async function loadSummary() {
+      const [account, photo] = await Promise.allSettled([
+        getMyAccount(),
+        getMyPhoto(controller.signal),
+      ]);
+      if (controller.signal.aborted) return;
+      if (photo.status === 'fulfilled' && photo.value) {
+        photoUrl = URL.createObjectURL(photo.value);
+      }
+      setPhotoFailed(false);
+      setSummary({
+        userId,
+        account: account.status === 'fulfilled' ? account.value : null,
+        photo: photoUrl,
+        error:
+          account.status === 'rejected'
+            ? '내 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.'
+            : photo.status === 'rejected'
+              ? '프로필 사진을 불러오지 못했어요.'
+              : '',
+      });
+    }
+    void loadSummary();
+    return () => {
+      controller.abort();
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+    };
+  }, [userId]);
 
   const handleMenuClick = (id: string) => {
     if (id === 'profile') {
-      navigate('/profile/edit');
+      navigate('/profile/edit', { state: { from: '/profile' } });
       return;
     }
 
     if (id === 'preferences') {
-      navigate('/profile/preferences');
+      navigate('/profile/preferences', { state: { from: '/profile' } });
       return;
     }
 
@@ -81,11 +122,42 @@ export default function ProfilePage() {
           <h1>마이페이지</h1>
         </header>
 
-        <section className="profile-summary-card">
-          <div className="profile-avatar">J</div>
+        <section
+          className="profile-summary-card"
+          aria-label="내 프로필"
+          aria-busy={!currentSummary}
+        >
+          <div className="profile-avatar">
+            {currentSummary?.photo && !photoFailed ? (
+              <img
+                src={currentSummary.photo}
+                alt="내 프로필 사진"
+                onError={() => setPhotoFailed(true)}
+              />
+            ) : (
+              <span role="img" aria-label="기본 프로필 이미지">
+                {Array.from(currentSummary?.account?.nickname ?? '')[0] || '•'}
+              </span>
+            )}
+          </div>
           <div className="profile-summary-text">
-            <strong>정연</strong>
-            <span>jyeon@email.com</span>
+            {!currentSummary ? (
+              <span role="status">내 정보를 불러오는 중…</span>
+            ) : (
+              <>
+                {currentSummary.account && (
+                  <>
+                    <strong>{currentSummary.account.nickname || '닉네임 미등록'}</strong>
+                    <span>{currentSummary.account.email || '이메일 미등록'}</span>
+                  </>
+                )}
+                {(currentSummary.error || photoFailed) && (
+                  <span role="alert">
+                    {currentSummary.error || '프로필 사진을 표시하지 못했어요.'}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </section>
 
