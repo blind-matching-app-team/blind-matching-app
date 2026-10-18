@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { saveProfile, uploadProfilePhoto } from '../api/profile';
 import { regions } from '../data/regions';
 import { mbtiOptions, profileKey, readProfile, type ProfileDraft } from '../lib/profileDraft';
@@ -19,6 +19,8 @@ const lifestyleSteps: { field: keyof ProfileLifestyle; label: string }[] = [
 
 export default function ProfileSetupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const backPath = location.state?.from === '/profile' ? '/profile' : '/onboarding';
   const photoInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [step, setStep] = useState(0);
@@ -50,7 +52,7 @@ export default function ProfileSetupPage() {
     setError('');
     try {
       await saveProfile({ ...profile, nickname: profile.nickname.trim() });
-      navigate('/profile/preferences');
+      navigate('/profile/preferences', { state: location.state });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '저장하지 못했어요. 다시 시도해주세요.');
     } finally {
@@ -319,7 +321,7 @@ export default function ProfileSetupPage() {
               <button
                 type="button"
                 className="profile-previous"
-                onClick={() => (step === 0 ? navigate('/onboarding') : moveTo(step - 1))}
+                onClick={() => (step === 0 ? navigate(backPath) : moveTo(step - 1))}
               >
                 이전
               </button>

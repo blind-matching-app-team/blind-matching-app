@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { completeMockVerification, savePreferences } from '../api/preferences';
 import { regions } from '../data/regions';
 import {
@@ -15,6 +15,8 @@ const ages = Array.from({ length: 81 }, (_, i) => i + 19);
 
 export default function PreferencesPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const backPath = location.state?.from === '/profile' ? '/profile' : '/profile/edit';
   const [form, setForm] = useState(readPreferences);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +39,9 @@ export default function PreferencesPage() {
     setError('');
     try {
       const result = await savePreferences(form);
-      navigate(result.data.identityVerified ? '/matching/waiting' : '/identity-verification');
+      navigate(result.data.identityVerified ? '/matching/waiting' : '/identity-verification', {
+        state: location.state,
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '저장하지 못했어요. 다시 시도해주세요.');
     } finally {
@@ -134,11 +138,7 @@ export default function PreferencesPage() {
               </p>
             )}
             <div className="profile-setup-actions">
-              <button
-                type="button"
-                className="profile-previous"
-                onClick={() => navigate('/profile/edit')}
-              >
+              <button type="button" className="profile-previous" onClick={() => navigate(backPath)}>
                 이전
               </button>
               <button type="submit" className="profile-save" disabled={Boolean(validation)}>
@@ -154,6 +154,8 @@ export default function PreferencesPage() {
 
 export function IdentityVerificationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromProfile = location.state?.from === '/profile';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function verifyMock() {
@@ -180,7 +182,9 @@ export function IdentityVerificationPage() {
             {error}
           </p>
         )}
-        <Link to="/profile/preferences">선호조건으로 돌아가기</Link>
+        <Link to={fromProfile ? '/profile' : '/profile/preferences'}>
+          {fromProfile ? '마이페이지로 돌아가기' : '선호조건으로 돌아가기'}
+        </Link>
         {import.meta.env.DEV && (
           <div className="verification-preview">
             <p>개발 미리보기 전용 · 실제 본인인증이 아닙니다.</p>
