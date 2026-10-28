@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { completeMockVerification, savePreferences } from '../api/preferences';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { savePreferences } from '../api/preferences';
 import { regions } from '../data/regions';
 import {
   readPreferences,
@@ -147,52 +147,6 @@ export default function PreferencesPage() {
             </div>
           </fieldset>
         </form>
-      </section>
-    </main>
-  );
-}
-
-export function IdentityVerificationPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const fromProfile = location.state?.from === '/profile';
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  async function verifyMock() {
-    setBusy(true);
-    try {
-      await completeMockVerification();
-      navigate('/matching/waiting', { replace: true });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '다시 시도해주세요.');
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <main className="profile-setup-shell">
-      <section className="profile-setup-card preferences-card">
-        <h1>본인인증</h1>
-        <p className="preferences-intro">
-          선호조건을 저장했어요. 매칭을 시작하려면 최초 1회 본인인증이 필요해요.
-        </p>
-        <p className="preferences-notice">본인인증 서비스는 준비 중이에요.</p>
-        {error && (
-          <p role="alert" className="profile-setup-error">
-            {error}
-          </p>
-        )}
-        <Link to={fromProfile ? '/profile' : '/profile/preferences'}>
-          {fromProfile ? '마이페이지로 돌아가기' : '선호조건으로 돌아가기'}
-        </Link>
-        {import.meta.env.DEV && (
-          <div className="verification-preview">
-            <p>개발 미리보기 전용 · 실제 본인인증이 아닙니다.</p>
-            <button type="button" disabled={busy} onClick={verifyMock}>
-              {busy ? '처리 중…' : '목 인증 완료 후 계속'}
-            </button>
-          </div>
-        )}
       </section>
     </main>
   );
