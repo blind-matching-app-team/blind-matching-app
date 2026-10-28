@@ -5,7 +5,18 @@ export type MyAccount = {
   userId: number;
   nickname: string | null;
   email: string | null;
+  // False for social-only accounts: S8-16 is hidden (ACCOUNT_API.md §4).
+  passwordSet?: boolean;
 };
+
+// Phase 2 contract; swap for PUT /api/v1/users/me/password when integrated.
+export async function changePassword(currentPassword: string, newPassword: string) {
+  await apiRequest(
+    '/api/mock/users/me/password',
+    { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) },
+    true,
+  );
+}
 
 export async function getMyAccount() {
   const result = await apiRequest<{ data: MyAccount }>('/api/v1/users/me', {}, true);

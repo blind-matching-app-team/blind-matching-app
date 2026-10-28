@@ -8,6 +8,8 @@ import { revealHandlers } from './reveal';
 import { adminHandlers } from './admin';
 import { identityHandlers } from './identity';
 import { photoVerificationHandlers } from './photoVerification';
+import { paymentHandlers } from './payments';
+import { accountHandlers } from './account';
 
 export const handlers = [
   ...matchingHandlers,
@@ -15,6 +17,8 @@ export const handlers = [
   ...adminHandlers,
   ...identityHandlers,
   ...photoVerificationHandlers,
+  ...paymentHandlers,
+  ...accountHandlers,
   ...preferenceHandlers,
   ...profileHandlers,
   ...chatHandlers,

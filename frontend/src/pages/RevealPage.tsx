@@ -269,7 +269,6 @@ export default function RevealPage() {
       <MatchingTicketModal
         open={ticketOpen}
         message="재매칭권을 모두 사용했어요. 즉시 재매칭하려면 이용권이 필요해요."
-        closeLabel="닫기"
         onClose={() => setTicketOpen(false)}
       />
     </main>

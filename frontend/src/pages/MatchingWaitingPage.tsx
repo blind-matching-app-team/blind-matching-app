@@ -180,6 +180,8 @@ export default function MatchingWaitingPage() {
       />
       <MatchingTicketModal
         open={state?.status === 'exhausted'}
+        message="매칭 기회를 모두 사용했어요. 매칭을 시작하려면 이용권이 필요해요."
+        closeLabel="홈으로 돌아가기"
         onClose={() => navigate('/', { replace: true })}
       />
     </main>
