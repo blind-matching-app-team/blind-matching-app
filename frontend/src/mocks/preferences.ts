@@ -20,13 +20,4 @@ export const preferenceHandlers = [
       data: { identityVerified: localStorage.getItem(setupKey('verified')) === 'true' },
     });
   }),
-  http.post('/api/mock/identity-verification', async () => {
-    await delay(300);
-    try {
-      localStorage.setItem(setupKey('verified'), 'true');
-    } catch {
-      return HttpResponse.json({ message: '인증 상태를 저장하지 못했어요.' }, { status: 507 });
-    }
-    return HttpResponse.json({ success: true });
-  }),
 ];

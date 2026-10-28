@@ -9,7 +9,11 @@ for (const verified of [false, true]) {
     await page.getByRole('button', { name: '매칭 시작하기' }).click();
     if (!verified) {
       await expect(page).toHaveURL('/identity-verification');
-      await page.getByRole('button', { name: '목 인증 완료 후 계속' }).click();
+      await page.getByRole('button', { name: '통신사 본인인증 시작' }).click();
+      await page
+        .getByRole('dialog', { name: '통신사 본인인증' })
+        .getByRole('button', { name: '인증하기' })
+        .click();
     }
     await expect(page).toHaveURL('/matching/waiting');
     await expect(page.getByRole('heading', { name: '매칭 상대를 찾고 있어요' })).toBeVisible();

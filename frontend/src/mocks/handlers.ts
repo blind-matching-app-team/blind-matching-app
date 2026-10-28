@@ -6,11 +6,13 @@ import { preferenceHandlers } from './preferences';
 import { matchingHandlers } from './matching';
 import { revealHandlers } from './reveal';
 import { adminHandlers } from './admin';
+import { identityHandlers } from './identity';
 
 export const handlers = [
   ...matchingHandlers,
   ...revealHandlers,
   ...adminHandlers,
+  ...identityHandlers,
   ...preferenceHandlers,
   ...profileHandlers,
   ...chatHandlers,

@@ -1,0 +1,63 @@
+.mock-sdk {
+  display: grid;
+  gap: 14px;
+}
+
+.mock-sdk .cm-title {
+  margin-bottom: 2px;
+}
+
+.mock-sdk-badge {
+  justify-self: start;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1efe8;
+  color: #8a7a88;
+  font-size: 11px;
+}
+
+.mock-sdk-field {
+  display: grid;
+  gap: 6px;
+  color: #3d2b3a;
+  font-size: 13px;
+}
+
+.mock-sdk-field span {
+  color: #b8a9b5;
+  font-size: 11px;
+}
+
+.mock-sdk-carriers {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+
+.mock-sdk-carriers legend {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 0;
+  color: #3d2b3a;
+}
+
+.mock-sdk-carriers label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  color: #8a7a88;
+}
+
+.mock-sdk-carriers input {
+  accent-color: #d4537e;
+}
+
+.mock-sdk .cm-actions {
+  margin-top: 6px;
+}

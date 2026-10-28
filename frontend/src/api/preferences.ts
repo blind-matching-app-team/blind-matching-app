@@ -8,6 +8,3 @@ export function savePreferences(preferences: Preferences) {
     true,
   );
 }
-export function completeMockVerification() {
-  return apiRequest('/api/mock/identity-verification', { method: 'POST' }, true);
-}
