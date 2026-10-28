@@ -13,6 +13,7 @@ import NotificationPage from '../pages/NotificationPage';
 import ProfilePage from '../pages/ProfilePage';
 import PreferencesPage from '../pages/PreferencesPage';
 import IdentityVerificationPage from '../pages/IdentityVerificationPage';
+import PhotoVerificationPage from '../pages/PhotoVerificationPage';
 import ProfileSetupPage, { OnboardingConnectionPage } from '../pages/ProfileSetupPage';
 import SuspendedPage from '../pages/SuspendedPage';
 import PasswordResetPage, { ForgotPasswordPage } from '../pages/PasswordResetPage';
@@ -73,6 +74,7 @@ const router = createBrowserRouter([
         element: <PreferencesPage />,
       },
       { path: '/identity-verification', element: <IdentityVerificationPage /> },
+      { path: '/profile/photo-verification', element: <PhotoVerificationPage /> },
       // Admin role is enforced by the API (AUTH_005); the page renders without the user sidebar.
       { path: '/admin/reports', element: <AdminReportPage /> },
     ],

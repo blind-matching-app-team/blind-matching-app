@@ -409,6 +409,27 @@ a {
   line-height: 1;
 }
 
+.profile-summary-text .profile-verified-badge {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e1f5ee;
+  color: #1d9e75;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.profile-menu-item--done {
+  color: #8a7a88;
+}
+
+.menu-status {
+  color: #1d9e75;
+  font-size: 13px;
+  /* Matches the arrow glyph's line box so the row height equals the other menu items. */
+  line-height: 24px;
+}
+
 .profile-actions {
   margin-top: 28px;
   display: flex;

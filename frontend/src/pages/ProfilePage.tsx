@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import { clearAuthSession, getUserId } from '../lib/auth';
 import { getMyAccount, getMyPhoto, type MyAccount } from '../api/profile';
+import { readPhotoVerification } from '../api/photoVerification';
 
 import ConfirmModal from '../components/ConfirmModal';
 import { confirmationContent, toastMessages } from '../components/feedbackContent';
@@ -38,7 +39,18 @@ export default function ProfilePage() {
     error: string;
   } | null>(null);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [photoVerified, setPhotoVerified] = useState(false);
   const currentSummary = summary?.userId === userId ? summary : null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    readPhotoVerification(controller.signal)
+      .then((status) => setPhotoVerified(status.verified))
+      .catch(() => {
+        /* Unknown status keeps the S8-17 entry available; S16 rechecks it. */
+      });
+    return () => controller.abort();
+  }, [userId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -89,7 +101,7 @@ export default function ProfilePage() {
     }
 
     if (id === 'verification') {
-      showToast('사진인증 페이지로 이동합니다');
+      if (!photoVerified) navigate('/profile/photo-verification');
       return;
     }
 
@@ -151,6 +163,7 @@ export default function ProfilePage() {
                     <span>{currentSummary.account.email || '이메일 미등록'}</span>
                   </>
                 )}
+                {photoVerified && <span className="profile-verified-badge">✓ 사진인증됨</span>}
                 {(currentSummary.error || photoFailed) && (
                   <span role="alert">
                     {currentSummary.error || '프로필 사진을 표시하지 못했어요.'}
@@ -162,21 +175,29 @@ export default function ProfilePage() {
         </section>
 
         <div className="profile-menu-list">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={
-                item.kind === 'highlight'
-                  ? 'ui-interactive profile-menu-item highlight'
-                  : 'ui-interactive profile-menu-item'
-              }
-              onClick={() => handleMenuClick(item.id)}
-            >
-              <span>{item.label}</span>
-              <span className="menu-arrow">›</span>
-            </button>
-          ))}
+          {menuItems.map((item) =>
+            item.id === 'verification' && photoVerified ? (
+              // S8-17: a verified user sees the status instead of re-entering S16.
+              <div key={item.id} className="profile-menu-item profile-menu-item--done">
+                <span>사진인증</span>
+                <span className="menu-status">인증완료</span>
+              </div>
+            ) : (
+              <button
+                key={item.id}
+                type="button"
+                className={
+                  item.kind === 'highlight'
+                    ? 'ui-interactive profile-menu-item highlight'
+                    : 'ui-interactive profile-menu-item'
+                }
+                onClick={() => handleMenuClick(item.id)}
+              >
+                <span>{item.label}</span>
+                <span className="menu-arrow">›</span>
+              </button>
+            ),
+          )}
         </div>
 
         <div className="profile-actions">

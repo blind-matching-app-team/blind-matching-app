@@ -7,12 +7,14 @@ import { matchingHandlers } from './matching';
 import { revealHandlers } from './reveal';
 import { adminHandlers } from './admin';
 import { identityHandlers } from './identity';
+import { photoVerificationHandlers } from './photoVerification';
 
 export const handlers = [
   ...matchingHandlers,
   ...revealHandlers,
   ...adminHandlers,
   ...identityHandlers,
+  ...photoVerificationHandlers,
   ...preferenceHandlers,
   ...profileHandlers,
   ...chatHandlers,
