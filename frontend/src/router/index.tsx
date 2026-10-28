@@ -1,6 +1,7 @@
 import { passwordResetLoader } from './passwordResetLoader';
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import AdminReportPage from '../pages/AdminReportPage';
 import ErrorPage from '../pages/ErrorPage';
 import MatchingWaitingPage from '../pages/MatchingWaitingPage';
 import AuthPage from '../pages/AuthPage';
@@ -66,6 +67,8 @@ const router = createBrowserRouter([
         element: <PreferencesPage />,
       },
       { path: '/identity-verification', element: <IdentityVerificationPage /> },
+      // Admin role is enforced by the API (AUTH_005); the page renders without the user sidebar.
+      { path: '/admin/reports', element: <AdminReportPage /> },
     ],
   },
   {
