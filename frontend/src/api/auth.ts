@@ -1,4 +1,4 @@
-import { apiRequest, clearAuthSession, setAuthSession } from '../lib/auth';
+import { apiRequest, clearAuthSession, getRefreshToken, setAuthSession } from '../lib/auth';
 
 export type AuthApiResponse<T> = {
   success: boolean;
@@ -58,4 +58,19 @@ export async function signupApi(email: string, password: string, phoneNumber = '
 
 export function logout() {
   clearAuthSession();
+}
+
+/** Revokes the refresh token server-side; the local session is cleared even if that fails. */
+export async function logoutApi() {
+  try {
+    await apiRequest(
+      '/api/v1/auth/logout',
+      { method: 'POST', body: JSON.stringify({ refreshToken: getRefreshToken() }) },
+      true,
+    );
+  } catch {
+    /* Signing out locally must not depend on the network. */
+  } finally {
+    clearAuthSession();
+  }
 }

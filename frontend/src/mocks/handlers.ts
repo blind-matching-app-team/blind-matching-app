@@ -5,10 +5,12 @@ import { profileHandlers } from './profile';
 import { preferenceHandlers } from './preferences';
 import { matchingHandlers } from './matching';
 import { revealHandlers } from './reveal';
+import { adminHandlers } from './admin';
 
 export const handlers = [
   ...matchingHandlers,
   ...revealHandlers,
+  ...adminHandlers,
   ...preferenceHandlers,
   ...profileHandlers,
   ...chatHandlers,

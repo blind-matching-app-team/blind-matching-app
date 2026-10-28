@@ -20,6 +20,13 @@ export const confirmationContent = {
     confirmLabel: '차단하기',
     variant: 'danger',
   },
+  approveReport: {
+    title: '이 신고를 승인하시겠어요?',
+    description:
+      '승인하면 누적 횟수에 따라 경고·이용 제한·차단 조치가 바로 실행되고, 되돌리기 어려워요.',
+    confirmLabel: '승인',
+    variant: 'danger',
+  },
   rematch: {
     title: '재매칭 하시겠어요?',
     description: '재매칭권 1개가 소모되고, 지금 매칭은 종료돼요.',
