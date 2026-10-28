@@ -1,0 +1,206 @@
+.reveal-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: linear-gradient(180deg, #fffafc, #f9f4f6);
+}
+
+.reveal-card {
+  width: 100%;
+  max-width: 420px;
+  min-height: min(640px, calc(100dvh - 48px));
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #eee0e8;
+  border-radius: 28px;
+  background: #fff;
+}
+
+.reveal-card--status {
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.reveal-back {
+  align-self: flex-start;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a7a88;
+  font-size: 20px;
+}
+
+.reveal-profile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 32px;
+  text-align: center;
+}
+
+.reveal-avatar {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #ed93b1;
+}
+
+.reveal-avatar svg,
+.reveal-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.reveal-avatar svg {
+  fill: #fbeaf0;
+  /* Keeps blurred edges from bleeding transparent inside the circle. */
+  transform: scale(1.1);
+  transition: filter 400ms var(--ui-motion-ease);
+}
+
+.reveal-name {
+  margin: 16px 0 0;
+  color: #3d2b3a;
+  font-size: 17px;
+  font-weight: 500;
+  word-break: keep-all;
+}
+
+.reveal-tags {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.reveal-tags li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1efe8;
+  color: #8a7a88;
+  font-size: 11px;
+}
+
+.reveal-tags--key {
+  margin-top: 6px;
+}
+
+.reveal-tags--key li {
+  background: #fbeaf0;
+  color: #993556;
+}
+
+.reveal-progress {
+  width: 100%;
+  max-width: 240px;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.reveal-progress span {
+  height: 5px;
+  border-radius: 999px;
+  background: #eee0e8;
+  transition: background-color 400ms ease;
+}
+
+.reveal-progress span.is-filled {
+  background: #d4537e;
+}
+
+.reveal-guide {
+  margin: 12px 0 0;
+  color: #8a7a88;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.reveal-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.reveal-condition {
+  margin: 0;
+  color: #8a7a88;
+  font-size: 11px;
+  text-align: center;
+}
+
+.reveal-condition.is-met {
+  color: #1d9e75;
+}
+
+.reveal-chip {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #fbf7fa;
+  color: #8a7a88;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.reveal-chip.is-met {
+  background: #fbeaf0;
+  color: #993556;
+}
+
+/* Unmet/requested chips are informational, so keep their spec colours at full opacity. */
+.reveal-chip.ui-interactive:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.reveal-start {
+  min-height: 48px;
+}
+
+.reveal-rematch {
+  justify-self: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #8a7a88;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.reveal-rematch:focus-visible {
+  outline: 2px solid #993556;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.reveal-rematch:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-avatar svg,
+  .reveal-progress span {
+    transition: none;
+  }
+}

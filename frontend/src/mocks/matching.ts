@@ -5,19 +5,28 @@ import { getRooms } from '../lib/chatStore';
 
 type Queue = { startedAt: number; scenario: string };
 const key = () => `bma-matching-queue-${getUserId()}`;
+const endedKey = () => `bma-matching-ended-${getUserId()}`;
 const readQueue = (): Queue | null => JSON.parse(sessionStorage.getItem(key()) || 'null');
+const readEnded = (): number[] => JSON.parse(sessionStorage.getItem(endedKey()) || '[]');
 const respond = (data: MatchingState | null) => HttpResponse.json({ data });
 
 function state(queue: Queue): MatchingState {
   const elapsed = Date.now() - queue.startedAt;
   if (queue.scenario === 'matched' && elapsed >= 3000) {
-    const room = getRooms().find((item) => !item.isClosed);
+    const ended = readEnded();
+    const room = getRooms().find((item) => !item.isClosed && !ended.includes(item.id));
     if (room) return { status: 'matched', roomId: room.id };
   }
   if (elapsed >= MATCHING_TIMEOUT_MS || (queue.scenario === 'empty' && elapsed >= 3000)) {
     return { status: 'empty' };
   }
   return { status: 'waiting', startedAt: queue.startedAt };
+}
+
+/** Rematch (S10): drop the finished queue so S9 starts fresh, and never re-offer this room. */
+export function endMatch(roomId: number) {
+  sessionStorage.removeItem(key());
+  sessionStorage.setItem(endedKey(), JSON.stringify([...new Set([...readEnded(), roomId])]));
 }
 
 export const matchingHandlers = [

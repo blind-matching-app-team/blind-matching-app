@@ -5,9 +5,13 @@ import Modal from './Modal';
 export default function MatchingTicketModal({
   open,
   onClose,
+  message = '매칭 기회를 모두 사용했어요. 매칭을 시작하려면 이용권이 필요해요.',
+  closeLabel = '홈으로 돌아가기',
 }: {
   open: boolean;
   onClose: () => void;
+  message?: string;
+  closeLabel?: string;
 }) {
   const titleId = useId();
   return (
@@ -28,13 +32,11 @@ export default function MatchingTicketModal({
         </button>
       </div>
       <div role="tabpanel" id={`${titleId}-panel`} aria-labelledby={`${titleId}-tab`}>
-        <p className="cm-description">
-          매칭 기회를 모두 사용했어요. 매칭을 시작하려면 이용권이 필요해요.
-        </p>
+        <p className="cm-description">{message}</p>
         <p className="cm-description">이용권 구매 기능은 준비 중이에요.</p>
       </div>
       <button type="button" className="ui-button ui-button--primary" onClick={onClose}>
-        홈으로 돌아가기
+        {closeLabel}
       </button>
     </Modal>
   );
