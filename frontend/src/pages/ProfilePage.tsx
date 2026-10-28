@@ -6,6 +6,8 @@ import { getMyAccount, getMyPhoto, type MyAccount } from '../api/profile';
 import { readPhotoVerification } from '../api/photoVerification';
 
 import ConfirmModal from '../components/ConfirmModal';
+import MatchingTicketModal from '../components/MatchingTicketModal';
+import PasswordChangeModal from '../components/PasswordChangeModal';
 import { confirmationContent, toastMessages } from '../components/feedbackContent';
 import { useToast } from '../components/useToast';
 
@@ -32,6 +34,8 @@ export default function ProfilePage() {
   const showToast = useToast();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
   const [summary, setSummary] = useState<{
     userId: number | null;
     account: MyAccount | null;
@@ -96,7 +100,7 @@ export default function ProfilePage() {
     }
 
     if (id === 'password') {
-      showToast('비밀번호 변경 모달을 열어주세요');
+      setShowPasswordChange(true);
       return;
     }
 
@@ -106,7 +110,7 @@ export default function ProfilePage() {
     }
 
     if (id === 'payment') {
-      showToast('이용권 구매 모달을 열어주세요');
+      setShowTicketModal(true);
       return;
     }
 
@@ -117,6 +121,14 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     clearAuthSession();
+    navigate('/login', { replace: true });
+  };
+
+  // The server revokes every refresh token on a password change (ACCOUNT_API.md §4).
+  const handlePasswordChanged = () => {
+    setShowPasswordChange(false);
+    clearAuthSession();
+    showToast('비밀번호가 변경됐어요, 새 비밀번호로 다시 로그인해주세요');
     navigate('/login', { replace: true });
   };
 
@@ -175,29 +187,34 @@ export default function ProfilePage() {
         </section>
 
         <div className="profile-menu-list">
-          {menuItems.map((item) =>
-            item.id === 'verification' && photoVerified ? (
-              // S8-17: a verified user sees the status instead of re-entering S16.
-              <div key={item.id} className="profile-menu-item profile-menu-item--done">
-                <span>사진인증</span>
-                <span className="menu-status">인증완료</span>
-              </div>
-            ) : (
-              <button
-                key={item.id}
-                type="button"
-                className={
-                  item.kind === 'highlight'
-                    ? 'ui-interactive profile-menu-item highlight'
-                    : 'ui-interactive profile-menu-item'
-                }
-                onClick={() => handleMenuClick(item.id)}
-              >
-                <span>{item.label}</span>
-                <span className="menu-arrow">›</span>
-              </button>
-            ),
-          )}
+          {menuItems
+            // S8-16 is hidden for social-only accounts, which have no password.
+            .filter(
+              (item) => item.id !== 'password' || currentSummary?.account?.passwordSet !== false,
+            )
+            .map((item) =>
+              item.id === 'verification' && photoVerified ? (
+                // S8-17: a verified user sees the status instead of re-entering S16.
+                <div key={item.id} className="profile-menu-item profile-menu-item--done">
+                  <span>사진인증</span>
+                  <span className="menu-status">인증완료</span>
+                </div>
+              ) : (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={
+                    item.kind === 'highlight'
+                      ? 'ui-interactive profile-menu-item highlight'
+                      : 'ui-interactive profile-menu-item'
+                  }
+                  onClick={() => handleMenuClick(item.id)}
+                >
+                  <span>{item.label}</span>
+                  <span className="menu-arrow">›</span>
+                </button>
+              ),
+            )}
         </div>
 
         <div className="profile-actions">
@@ -230,6 +247,12 @@ export default function ProfilePage() {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteAccount}
       />
+      <PasswordChangeModal
+        open={showPasswordChange}
+        onClose={() => setShowPasswordChange(false)}
+        onChanged={handlePasswordChanged}
+      />
+      <MatchingTicketModal open={showTicketModal} onClose={() => setShowTicketModal(false)} />
     </div>
   );
 }
