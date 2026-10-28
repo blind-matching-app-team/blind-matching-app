@@ -74,7 +74,7 @@ test('five minute timeout, retry with a new clock, and later returns to S5', asy
 test('MSW matched response automatically opens S10', async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('bma-matching-scenario', 'matched'));
   await page.goto('/matching/waiting');
-  await expect(page).toHaveURL('/chat/1', { timeout: 10000 });
+  await expect(page).toHaveURL('/matching/1/reveal', { timeout: 10000 });
 });
 
 test('exhausted chances open consumable ticket modal without registering a queue', async ({

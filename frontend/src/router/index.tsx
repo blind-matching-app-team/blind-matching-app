@@ -4,6 +4,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import AdminReportPage from '../pages/AdminReportPage';
 import ErrorPage from '../pages/ErrorPage';
 import MatchingWaitingPage from '../pages/MatchingWaitingPage';
+import RevealPage from '../pages/RevealPage';
 import AuthPage from '../pages/AuthPage';
 import ChatListPage from '../pages/ChatListPage';
 import ChatPage from '../pages/ChatPage';
@@ -48,6 +49,10 @@ const router = createBrowserRouter([
       {
         path: '/matching/waiting',
         element: <MatchingWaitingPage />,
+      },
+      {
+        path: '/matching/:roomId/reveal',
+        element: <RevealPage />,
       },
       {
         path: '/notifications',

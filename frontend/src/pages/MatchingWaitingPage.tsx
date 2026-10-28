@@ -33,7 +33,7 @@ export default function MatchingWaitingPage() {
       if (controller.signal.aborted || cancelPending.current) return;
       setState(next);
       setNow(Date.now());
-      if (next.status === 'matched') navigate(`/chat/${next.roomId}`, { replace: true });
+      if (next.status === 'matched') navigate(`/matching/${next.roomId}/reveal`, { replace: true });
       if (next.status === 'waiting') timer = setTimeout(() => void poll(), 1000);
       else setConfirmOpen(false);
     }
@@ -71,7 +71,9 @@ export default function MatchingWaitingPage() {
     try {
       const result = await cancelMatching();
       if (!mounted.current) return;
-      navigate(result?.status === 'matched' ? `/chat/${result.roomId}` : '/', { replace: true });
+      navigate(result?.status === 'matched' ? `/matching/${result.roomId}/reveal` : '/', {
+        replace: true,
+      });
     } catch {
       if (mounted.current) {
         showToast(toastMessages.networkError);
