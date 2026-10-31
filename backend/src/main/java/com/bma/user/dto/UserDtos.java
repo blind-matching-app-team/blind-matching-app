@@ -404,4 +404,16 @@ public final class UserDtos {
                     image.getReviewStatus());
         }
     }
+
+    /**
+     * 내 프로필 이미지 파일 내용 (S5 사이드바·S8-08 프로필 요약, BMA-93).
+     *
+     * <p>{@code <img src>} 는 Authorization 헤더를 실을 수 없어서, 프론트가 토큰을 붙여
+     * 바이트를 받은 뒤 blob URL 로 그린다.</p>
+     *
+     * @param bytes       파일 내용
+     * @param contentType 업로드 때 검증된 MIME 타입
+     */
+    public record ProfileImageContent(byte[] bytes, String contentType) {
+    }
 }
