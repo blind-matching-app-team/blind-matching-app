@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,16 +18,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class UserWithdrawTest {
 
     @Test
-    @DisplayName("탈퇴하면 상태는 WITHDRAWN, 이메일·전화·비밀번호·소셜 키가 지워지고 논리 삭제된다")
+    @DisplayName("탈퇴하면 상태는 WITHDRAWN·탈퇴 일시 기록, 이메일·전화·비밀번호·소셜 키가 지워지고 논리 삭제된다")
     void withdrawAnonymizesAccount() {
         User user = User.createLocal("me@example.com", "$2a$hash", "010-1234-5678");
         user.setId(42L);
         user.setLoginProvider("KAKAO");
         user.setProviderUserKey("kakao-key");
+        assertThat(user.getWithdrawDate()).isNull();
+        LocalDateTime before = LocalDateTime.now();
 
         user.withdraw();
 
         assertThat(user.getUserStatus()).isEqualTo(User.STATUS_WITHDRAWN);
+        assertThat(user.getWithdrawDate()).isBetween(before, LocalDateTime.now());
         assertThat(user.isWithdrawn()).isTrue();
         assertThat(user.isActive()).isFalse();
         assertThat(user.isDeleted()).isTrue();
