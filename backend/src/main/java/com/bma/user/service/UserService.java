@@ -10,6 +10,7 @@ import com.bma.user.dto.UserDtos.MeResponse;
 import com.bma.user.dto.UserDtos.NicknameCheckResponse;
 import com.bma.user.dto.UserDtos.PreferenceRequest;
 import com.bma.user.dto.UserDtos.PreferenceResponse;
+import com.bma.user.dto.UserDtos.ProfileImageContent;
 import com.bma.user.dto.UserDtos.ProfileImageResponse;
 import com.bma.user.dto.UserDtos.ProfileRequest;
 import com.bma.user.dto.UserDtos.ProfileResponse;
@@ -242,6 +243,18 @@ public class UserService {
      */
     public Optional<ProfileImageResponse> getImage(Long userId) {
         return currentImage(userId).map(ProfileImageResponse::from);
+    }
+
+    /**
+     * 내 프로필 이미지의 파일 내용을 읽는다 (BMA-93).
+     *
+     * @param userId 사용자 ID
+     * @return 파일 내용. 아직 올리지 않았으면 비어 있음
+     * @throws BusinessException 저장소에서 파일을 읽지 못한 경우
+     */
+    public Optional<ProfileImageContent> getImageContent(Long userId) {
+        return currentImage(userId).map(image -> new ProfileImageContent(
+                storageService.read(image.getOriginalObjectKey()), image.getContentType()));
     }
 
     /**

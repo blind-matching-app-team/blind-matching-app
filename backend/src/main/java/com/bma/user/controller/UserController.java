@@ -17,6 +17,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -170,6 +173,26 @@ public class UserController {
             @AuthenticationPrincipal CustomUserPrincipal principal) {
         // 사진 미등록은 오류가 아니라 정상 상태다. 404 대신 빈 값을 준다.
         return ApiResponse.ok(userService.getImage(principal.userId()).orElse(null));
+    }
+
+    /**
+     * 내 프로필 이미지 파일 내용 조회 (BMA-93).
+     *
+     * @param principal 인증 주체
+     * @return 이미지 바이트. 아직 없으면 204
+     */
+    @Operation(summary = "내 프로필 이미지 파일 조회 (S5 사이드바·S8-08)",
+            description = "이미지 바이트를 그대로 내려준다. 사진 미등록이면 204. "
+                    + "토큰이 필요해 <img src> 대신 fetch 후 blob URL 로 그린다.")
+    @GetMapping("/image/content")
+    public ResponseEntity<byte[]> getImageContent(@AuthenticationPrincipal CustomUserPrincipal principal) {
+        // 본인 사진이라도 공용 캐시나 브라우저 디스크에 남기지 않는다.
+        return userService.getImageContent(principal.userId())
+                .map(content -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(content.contentType()))
+                        .cacheControl(CacheControl.noStore())
+                        .body(content.bytes()))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /**

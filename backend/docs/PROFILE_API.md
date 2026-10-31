@@ -177,6 +177,22 @@ GET /api/v1/users/me/image        (인증 필요)
 }
 ```
 
+### 파일 내용 조회 (BMA-93)
+
+```
+GET /api/v1/users/me/image/content    (인증 필요)
+```
+
+S5 사이드바·S8-08 프로필 요약에 사진을 그릴 때 쓴다. 봉투 없이 **이미지 바이트를 그대로** 준다.
+
+| 상황 | HTTP | 본문 |
+| --- | --- | --- |
+| 사진 있음 | 200 | 이미지 바이트. `Content-Type` 은 업로드 때 검증된 MIME, `Cache-Control: no-store` |
+| 사진 없음 | 204 | 없음. 이니셜 아바타로 대체 |
+| 인증 없음 | 401 | `AUTH_001` |
+
+`<img src>` 는 Authorization 헤더를 못 실으므로 `fetch` 로 받아 `URL.createObjectURL(blob)` 로 그린다.
+
 ### 등록 / 교체
 
 ```
