@@ -145,6 +145,10 @@ public class User extends BaseAuditEntity {
     @Column(name = "SUSPENDED_UNTIL")
     private LocalDateTime suspendedUntil;
 
+    /** 탈퇴 일시. 탈퇴하지 않았으면 {@code null}. */
+    @Column(name = "WITHDRAW_DATE")
+    private LocalDateTime withdrawDate;
+
     /**
      * 로컬 가입 계정을 만든다.
      *
@@ -306,6 +310,7 @@ public class User extends BaseAuditEntity {
      */
     public void withdraw() {
         this.userStatus = STATUS_WITHDRAWN;
+        this.withdrawDate = LocalDateTime.now();
         // 탈퇴한 사람이 다시 가입해 본인인증을 하면 새 계정에 CI 가 묶여야 하므로 해시를 비운다.
         this.identityCiHash = null;
         this.identityBirthDate = null;
